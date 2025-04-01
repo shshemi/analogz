@@ -1,4 +1,7 @@
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -118,6 +121,31 @@ impl LogBuf {
                 end,
             }
         })
+    }
+
+    /// Returns a slice of lines from the log buffer in the given range.
+    ///
+    /// # Arguments
+    ///
+    /// * `rng` - A range of line indices to include in the slice
+    ///
+    /// # Returns
+    ///
+    /// A vector of `Line` objects within the specified range
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use analogz::buf::LogBuf;
+    ///
+    /// let logs = LogBuf::new("line 1\nline 2\nline 3\nline 4".to_string());
+    /// let middle_lines = logs.slice(1..3);
+    /// assert_eq!(middle_lines.len(), 2);
+    /// assert_eq!(middle_lines[0].as_str(), "line 2");
+    /// assert_eq!(middle_lines[1].as_str(), "line 3");
+    /// ```
+    pub fn slice(&self, rng: Range<usize>) -> Vec<Line> {
+        rng.filter_map(|idx| self.get(idx)).collect()
     }
 
     /// Returns an iterator over all lines in the log buffer.
@@ -392,5 +420,33 @@ mod tests {
             reconstructed.push_str(std::str::from_utf8(chunk).unwrap());
         }
         assert_eq!(reconstructed, text);
+    }
+
+    #[test]
+    fn test_slice() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = LogBuf::new(content);
+
+        // Test full range slice
+        let full_slice = buffer.slice(0..5);
+        assert_eq!(full_slice.len(), 5);
+        assert_eq!(full_slice[0].as_str(), "line 1");
+        assert_eq!(full_slice[4].as_str(), "line 5");
+
+        // Test partial slice
+        let partial_slice = buffer.slice(1..4);
+        assert_eq!(partial_slice.len(), 3);
+        assert_eq!(partial_slice[0].as_str(), "line 2");
+        assert_eq!(partial_slice[1].as_str(), "line 3");
+        assert_eq!(partial_slice[2].as_str(), "line 4");
+
+        // Test empty slice
+        let empty_slice = buffer.slice(2..2);
+        assert_eq!(empty_slice.len(), 0);
+
+        // Test out of bounds slice
+        let out_of_bounds = buffer.slice(4..10);
+        assert_eq!(out_of_bounds.len(), 1);
+        assert_eq!(out_of_bounds[0].as_str(), "line 5");
     }
 }
