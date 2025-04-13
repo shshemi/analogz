@@ -1,7 +1,4 @@
-use std::{
-    ops::{Deref, Range},
-    sync::Arc,
-};
+use std::{ops::Range, sync::Arc};
 
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -34,6 +31,8 @@ use rayon::prelude::*;
 pub struct LogBuf {
     buffer: Arc<str>,
     lines: Arc<[usize]>,
+    start: usize,
+    end: usize,
 }
 
 impl LogBuf {
@@ -48,7 +47,7 @@ impl LogBuf {
     /// A new `LogBuf` instance containing the provided content
     ///
     pub fn new(content: String) -> LogBuf {
-        let lines = if content.is_empty() {
+        let lines: Arc<[usize]> = if content.is_empty() {
             Default::default()
         } else {
             chunk_str(&content, num_cpus::get())
@@ -63,7 +62,9 @@ impl LogBuf {
 
         LogBuf {
             buffer: Arc::from(content),
+            end: lines.len(),
             lines,
+            start: 0,
         }
     }
 
@@ -73,7 +74,19 @@ impl LogBuf {
     ///
     /// A `&str` containing the entire log content
     pub fn as_str(&self) -> &str {
-        self.buffer.deref()
+        let start = if self.start == 0 {
+            0
+        } else if let Some(start) = self.lines.get(self.start - 1) {
+            start + 1
+        } else {
+            0
+        };
+        let end = if self.end == 0 {
+            0
+        } else {
+            self.lines.get(self.end - 1).copied().unwrap_or(0)
+        };
+        &self.buffer[start..end]
     }
 
     /// Returns the number of lines in the log buffer.
@@ -82,7 +95,7 @@ impl LogBuf {
     ///
     /// The total number of lines in the log buffer
     pub fn len(&self) -> usize {
-        self.lines.len()
+        self.end - self.start
     }
 
     /// Checks if the log buffer is empty (contains no lines).
@@ -91,7 +104,7 @@ impl LogBuf {
     ///
     /// `true` if the log buffer contains no lines, `false` otherwise
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.start == self.end
     }
 
     /// Returns the line at the given index.
@@ -105,25 +118,24 @@ impl LogBuf {
     /// * `Some(Line)` for valid indices
     /// * `None` for invalid indices
     pub fn get(&self, idx: usize) -> Option<Line> {
-        Some(if idx == 0 {
-            let end = *self.lines.first()?;
-            Line {
-                slice: &self.buffer[..end],
-                start: 0,
-                end,
-            }
-        } else {
-            let start = self.lines.get(idx - 1)? + 1;
-            let end = *self.lines.get(idx)?;
-            Line {
+        let idx = self.start + idx;
+        if idx < self.end {
+            let (start, end) = if idx == 0 {
+                (0, *self.lines.first()?)
+            } else {
+                (self.lines.get(idx - 1)? + 1, *self.lines.get(idx)?)
+            };
+            Some(Line {
                 slice: &self.buffer[start..end],
                 start,
                 end,
-            }
-        })
+            })
+        } else {
+            None
+        }
     }
 
-    /// Returns a slice of lines from the log buffer in the given range.
+    /// Returns a slice of the log buffer for the given range of lines.
     ///
     /// # Arguments
     ///
@@ -131,7 +143,7 @@ impl LogBuf {
     ///
     /// # Returns
     ///
-    /// A vector of `Line` objects within the specified range
+    /// A new `LogBuf` containing only the lines in the specified range
     ///
     /// # Examples
     ///
@@ -141,11 +153,16 @@ impl LogBuf {
     /// let logs = LogBuf::new("line 1\nline 2\nline 3\nline 4".to_string());
     /// let middle_lines = logs.slice(1..3);
     /// assert_eq!(middle_lines.len(), 2);
-    /// assert_eq!(middle_lines[0].as_str(), "line 2");
-    /// assert_eq!(middle_lines[1].as_str(), "line 3");
+    /// assert_eq!(middle_lines.get(0).unwrap().as_str(), "line 2");
+    /// assert_eq!(middle_lines.get(1).unwrap().as_str(), "line 3");
     /// ```
-    pub fn slice(&self, rng: Range<usize>) -> Vec<Line> {
-        rng.filter_map(|idx| self.get(idx)).collect()
+    pub fn slice(&self, rng: Range<usize>) -> LogBuf {
+        Self {
+            buffer: self.buffer.clone(),
+            lines: self.lines.clone(),
+            start: (self.start + rng.start).min(self.end),
+            end: (self.start + rng.end).min(self.end),
+        }
     }
 
     /// Returns an iterator over all lines in the log buffer.
@@ -170,22 +187,6 @@ impl LogBuf {
             buffer: self,
             idx: 0,
         }
-    }
-
-    /// Returns an iterator over lines starting from the given index.
-    ///
-    /// This is similar to `iter()`, but allows specifying a starting point
-    /// in the log buffer.
-    ///
-    /// # Arguments
-    ///
-    /// * `idx` - The zero-based index to start iterating from
-    ///
-    /// # Returns
-    ///
-    /// An iterator that yields each line starting from the given index
-    pub fn iter_from(&self, idx: usize) -> LineIter {
-        LineIter { buffer: self, idx }
     }
 }
 
@@ -318,28 +319,6 @@ mod tests {
     }
 
     #[test]
-    fn test_iter_lines_from() {
-        let content = "line 1\nline 2\nline 3\nline 4".to_string();
-        let buffer = LogBuf::new(content);
-
-        let lines: Vec<_> = buffer
-            .iter_from(1)
-            .map(|l| l.as_str().to_string())
-            .collect();
-        assert_eq!(lines, vec!["line 2", "line 3", "line 4"]);
-
-        let lines: Vec<_> = buffer
-            .iter_from(2)
-            .map(|l| l.as_str().to_string())
-            .collect();
-        assert_eq!(lines, vec!["line 3", "line 4"]);
-
-        // Start from the end
-        let lines: Vec<_> = buffer.iter_from(4).collect();
-        assert!(lines.is_empty());
-    }
-
-    #[test]
     fn test_line_as_ref() {
         let content = "test line".to_string();
         let buffer = LogBuf::new(content);
@@ -430,15 +409,17 @@ mod tests {
         // Test full range slice
         let full_slice = buffer.slice(0..5);
         assert_eq!(full_slice.len(), 5);
-        assert_eq!(full_slice[0].as_str(), "line 1");
-        assert_eq!(full_slice[4].as_str(), "line 5");
+        assert_eq!(full_slice.get(0).unwrap().as_str(), "line 1");
+        assert_eq!(full_slice.get(4).unwrap().as_str(), "line 5");
 
-        // Test partial slice
+        // Test slice
         let partial_slice = buffer.slice(1..4);
         assert_eq!(partial_slice.len(), 3);
-        assert_eq!(partial_slice[0].as_str(), "line 2");
-        assert_eq!(partial_slice[1].as_str(), "line 3");
-        assert_eq!(partial_slice[2].as_str(), "line 4");
+        // Test that as_str returns the expected slice content
+        assert_eq!(partial_slice.as_str(), "line 2\nline 3\nline 4");
+        assert_eq!(partial_slice.get(0).unwrap().as_str(), "line 2");
+        assert_eq!(partial_slice.get(1).unwrap().as_str(), "line 3");
+        assert_eq!(partial_slice.get(2).unwrap().as_str(), "line 4");
 
         // Test empty slice
         let empty_slice = buffer.slice(2..2);
@@ -447,6 +428,72 @@ mod tests {
         // Test out of bounds slice
         let out_of_bounds = buffer.slice(4..10);
         assert_eq!(out_of_bounds.len(), 1);
-        assert_eq!(out_of_bounds[0].as_str(), "line 5");
+        assert_eq!(out_of_bounds.get(0).unwrap().as_str(), "line 5");
+    }
+
+    #[test]
+    fn test_slice_of_slice() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = LogBuf::new(content);
+
+        // Create first slice
+        let first_slice = buffer.slice(1..4); // lines 2-4
+        assert_eq!(first_slice.len(), 3);
+        assert_eq!(first_slice.get(0).unwrap().as_str(), "line 2");
+        assert_eq!(first_slice.get(1).unwrap().as_str(), "line 3");
+        assert_eq!(first_slice.get(2).unwrap().as_str(), "line 4");
+
+        // Create slice of the first slice
+        let nested_slice = first_slice.slice(1..3); // lines 3-4
+        println!("nested: {} - {}", nested_slice.start, nested_slice.end);
+        assert_eq!(nested_slice.len(), 2);
+        assert_eq!(nested_slice.get(0).unwrap().as_str(), "line 3");
+        assert_eq!(nested_slice.get(1).unwrap().as_str(), "line 4");
+
+        // Test that the original slices are unaffected
+        assert_eq!(first_slice.len(), 3);
+        assert_eq!(buffer.len(), 5);
+
+        // Test empty nested slice
+        let empty_nested = first_slice.slice(1..1);
+        assert_eq!(empty_nested.len(), 0);
+        assert!(empty_nested.is_empty());
+    }
+
+    #[test]
+    fn test_out_of_range_slices() {
+        let content = "line 1\nline 2\nline 3".to_string();
+        let buffer = LogBuf::new(content);
+
+        // Test completely out of range
+        let out_of_range = buffer.slice(10..15);
+        assert_eq!(out_of_range.len(), 0);
+        assert!(out_of_range.get(0).is_none());
+        assert!(out_of_range.is_empty());
+
+        // Test partially out of range
+        let partially_out = buffer.slice(1..10);
+        assert_eq!(partially_out.len(), 2);
+        assert_eq!(partially_out.get(0).unwrap().as_str(), "line 2");
+        assert_eq!(partially_out.get(1).unwrap().as_str(), "line 3");
+        assert!(partially_out.get(2).is_none());
+    }
+
+    #[test]
+    fn test_slice_with_out_of_range_index() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = LogBuf::new(content);
+
+        // Create a slice of just lines 2-3
+        let slice = buffer.slice(1..3);
+        assert_eq!(slice.len(), 2);
+        assert_eq!(slice.get(0).unwrap().as_str(), "line 2");
+        assert_eq!(slice.get(1).unwrap().as_str(), "line 3");
+
+        // Try to access line 4 (index 3 in original buffer, but out of range in the slice)
+        assert!(slice.get(2).is_none());
+
+        // Try to access line 5 (index 4 in original buffer, but out of range in the slice)
+        assert!(slice.get(3).is_none());
     }
 }
