@@ -128,13 +128,10 @@ pub trait Tokenize {
     fn tokenize(&self) -> TokenIter;
 }
 
-impl<T> Tokenize for T
-where
-    T: AsRef<str>,
-{
+impl Tokenize for str {
     fn tokenize(&self) -> TokenIter {
         TokenIter {
-            slice: self.as_ref(),
+            slice: self,
             offset: 0,
             state: TokenIterState::Start,
         }
