@@ -11,4 +11,14 @@ rayon = "1.10.0"
 regex = "1.11.1"
 
 [dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
+
 tempfile = "3.19.1"
+
+[[bench]]
+name = "log_buf"
+harness = false
+
+[[bench]]
+name = "tokenize"
+harness = false
