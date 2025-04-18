@@ -12,7 +12,7 @@ use rayon::prelude::*;
 /// # Examples
 ///
 /// ```
-/// use analogz::buf::LogBuf;
+/// use analogz::container::LogBuf;
 ///
 /// let logs = LogBuf::new("line 1\nline 2\nline 3".to_string());
 /// assert_eq!(logs.len(), 3);
@@ -148,7 +148,7 @@ impl LogBuf {
     /// # Examples
     ///
     /// ```
-    /// use analogz::buf::LogBuf;
+    /// use analogz::container::LogBuf;
     ///
     /// let logs = LogBuf::new("line 1\nline 2\nline 3\nline 4".to_string());
     /// let middle_lines = logs.slice(1..3);
@@ -174,7 +174,7 @@ impl LogBuf {
     /// # Examples
     ///
     /// ```
-    /// use analogz::buf::LogBuf;
+    /// use analogz::container::LogBuf;
     ///
     /// let logs = LogBuf::new("line 1\nline 2\nline 3".to_string());
     ///
@@ -237,8 +237,8 @@ impl<'a> Line<'a> {
     }
 }
 
-impl AsRef<str> for Line<'_> {
-    fn as_ref(&self) -> &str {
+impl<'a> AsRef<str> for Line<'a> {
+    fn as_ref(&self) -> &'a str {
         self.slice
     }
 }
