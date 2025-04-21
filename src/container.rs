@@ -3,6 +3,8 @@ use std::{ops::Range, sync::Arc};
 use itertools::Itertools;
 use rayon::prelude::*;
 
+type LogString = Arc<str>;
+
 /// A cheap-to-clone container for storage and retrieval of log lines.
 ///
 /// `LogBuf` stores the full log content as a single string, and maintains
@@ -29,7 +31,7 @@ use rayon::prelude::*;
 /// ```
 #[derive(Debug, Clone)]
 pub struct LogBuf {
-    buffer: Arc<str>,
+    buffer: LogString,
     lines: Arc<[usize]>,
     start: usize,
     end: usize,
@@ -126,7 +128,7 @@ impl LogBuf {
                 (self.lines.get(idx - 1)? + 1, *self.lines.get(idx)?)
             };
             Some(Line {
-                slice: &self.buffer[start..end],
+                slice: self.buffer.clone(),
                 start,
                 end,
             })
@@ -199,8 +201,8 @@ pub struct LineIter<'a> {
     idx: usize,
 }
 
-impl<'a> Iterator for LineIter<'a> {
-    type Item = Line<'a>;
+impl Iterator for LineIter<'_> {
+    type Item = Line;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.buffer.get(self.idx).inspect(|_| {
@@ -214,16 +216,16 @@ impl<'a> Iterator for LineIter<'a> {
 /// Each `Line` contains a reference to the original string slice,
 /// as well as the start and end positions within the original buffer.
 #[derive(Debug, Clone)]
-pub struct Line<'a> {
-    slice: &'a str,
+pub struct Line {
+    slice: LogString,
     start: usize,
     end: usize,
 }
 
-impl<'a> Line<'a> {
+impl Line {
     /// Returns the slice containing the line.
-    pub fn as_str(&self) -> &'a str {
-        self.slice
+    pub fn as_str(&self) -> &str {
+        &self.slice[self.start..self.end]
     }
 
     /// Returns the start position.
@@ -237,9 +239,9 @@ impl<'a> Line<'a> {
     }
 }
 
-impl<'a> AsRef<str> for Line<'a> {
-    fn as_ref(&self) -> &'a str {
-        self.slice
+impl AsRef<str> for Line {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
