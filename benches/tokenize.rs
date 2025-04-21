@@ -1,4 +1,4 @@
-use analogz::{container::LogBuf, token::Tokenize};
+use analogz::{container::LogBuf, tokenizer::Tokenize};
 use criterion::{Criterion, criterion_group, criterion_main};
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
