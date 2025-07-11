@@ -9,4 +9,6 @@ name = "analogz"
 crate-type = ["cdylib"]
 
 [dependencies]
+itertools = "0.14.0"
+num_cpus = "1.17.0"
 pyo3 = "0.25.0"

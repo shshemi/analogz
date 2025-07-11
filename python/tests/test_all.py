@@ -13,4 +13,6 @@ def test_sample():
 
     # Slice test
     sl = buff[1:4]
+    assert isinstance(sl, analogz.Buffer)
     assert [str(line) for line in sl] == ["Line2", "Line3"]
+    pass
