@@ -1,3 +1,4 @@
+use crate::container::traits::Find;
 use std::{
     fmt::Debug,
     ops::{Deref, RangeBounds},
@@ -85,6 +86,10 @@ impl ArcStr {
 
     pub fn split_at(&self, idx: usize) -> (Self, Self) {
         (self.slice(..idx), self.slice(idx..))
+    }
+
+    pub fn find<F: Find>(&self, f: F) -> Option<Self> {
+        f.find(self)
     }
 
     pub fn as_str(&self) -> &str {
