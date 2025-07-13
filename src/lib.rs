@@ -45,6 +45,11 @@ impl PyBuffer {
     pub fn len(&self) -> usize {
         self.buffer.len()
     }
+
+    #[allow(clippy::inherent_to_string)]
+    pub fn to_string(&self) -> String {
+        self.buffer.as_str().to_owned()
+    }
 }
 
 #[pyclass]

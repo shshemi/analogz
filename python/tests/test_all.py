@@ -1,9 +1,14 @@
 from analogz import Buffer, LineIter, Line, ArcStr
 
 
-def test_init():
+def test_buffer_init():
     buff = Buffer("Line1\nLine2\nLine3")
     assert buff is not None
+
+def test_buffer_to_string():
+    content = "Line1\nLine2\nLine3"
+    buff = Buffer(content)
+    assert str(buff) == content
 
 def test_buffer_getitem():
     buff = Buffer("Line1\nLine2\nLine3")

@@ -72,6 +72,9 @@ class Buffer:
     def __iter__(self) -> LineIter:
         return LineIter(self.__buffer.iter())
 
+    def __str__(self) -> str:
+        return self.__buffer.to_string()
+
     def __getitem__(self, idx) -> Union["Buffer", Line]:
         if isinstance(idx, slice):
             assert slice.step is not None, "Step is not supported"
