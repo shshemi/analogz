@@ -1,5 +1,7 @@
 use std::ops::{Deref, Range};
 
+use rayon::prelude::*;
+
 use super::{arc_str::ArcStr, line_index::LineIndex};
 
 /// A cheap-to-clone container for storage and retrieval of log lines.
@@ -151,6 +153,14 @@ impl Buffer {
             buffer: self.clone(),
             idx: 0,
         }
+    }
+
+    pub fn map_line<F, O>(&self, f: F) -> Vec<O>
+    where
+        F: Fn(Line) -> O + Send + Sync,
+        O: Send,
+    {
+        self.iter().par_bridge().map(f).collect()
     }
 }
 
