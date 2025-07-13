@@ -154,14 +154,6 @@ impl Buffer {
             idx: 0,
         }
     }
-
-    pub fn map_line<F, O>(&self, f: F) -> Vec<O>
-    where
-        F: Fn(Line) -> O + Send + Sync,
-        O: Send,
-    {
-        self.iter().par_bridge().map(f).collect()
-    }
 }
 
 /// Iterator over the lines in a `Buffer`.

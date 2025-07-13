@@ -1,5 +1,6 @@
 mod container;
 
+use polars::frame::DataFrame;
 use pyo3::prelude::*;
 
 use crate::container::{ArcStr, Buffer, Line, LineIter};
@@ -7,6 +8,7 @@ use crate::container::{ArcStr, Buffer, Line, LineIter};
 #[pyclass]
 pub struct PyBuffer {
     buffer: Buffer,
+    features: DataFrame,
 }
 
 #[pymethods]
@@ -15,6 +17,7 @@ impl PyBuffer {
     pub fn new(content: String) -> Self {
         PyBuffer {
             buffer: Buffer::new(content),
+            features: DataFrame::empty(),
         }
     }
 
@@ -30,6 +33,7 @@ impl PyBuffer {
         let end = end.unwrap_or(self.len());
         PyBuffer {
             buffer: self.buffer.slice(start..end),
+            features: self.features.slice(start as i64, end - start),
         }
     }
 
