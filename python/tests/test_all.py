@@ -23,6 +23,12 @@ def test_buffer_getitem():
 
 def test_buffer_iter():
     buff = Buffer("Line1\nLine2\nLine3")
+    itr = iter(buff)
+    assert isinstance(itr, LineIter)
+    assert str(next(itr)) == "Line1"
+    assert str(next(itr)) == "Line2"
+    assert str(next(itr)) == "Line3"
+
     for line in buff:
         assert isinstance(line, Line)
 
