@@ -202,6 +202,12 @@ impl Deref for Line {
     }
 }
 
+impl From<Line> for ArcStr {
+    fn from(value: Line) -> Self {
+        value.astr
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2,8 +2,18 @@ mod container;
 
 use polars::frame::DataFrame;
 use pyo3::prelude::*;
+use regex::Regex;
 
-use crate::container::{ArcStr, Buffer, Line, LineIter};
+use crate::container::{ArcStr, Buffer, LineIter};
+
+#[pymodule]
+fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<PyBuffer>()?;
+    m.add_class::<PyLineIter>()?;
+    m.add_class::<PyArcStr>()?;
+    m.add_class::<PyCompiledRegex>()?;
+    Ok(())
+}
 
 #[pyclass]
 pub struct PyBuffer {
@@ -21,10 +31,11 @@ impl PyBuffer {
         }
     }
 
-    pub fn get(&self, idx: usize) -> PyResult<PyLine> {
+    pub fn get(&self, idx: usize) -> PyResult<PyArcStr> {
         self.buffer
             .get(idx)
-            .map(PyLine)
+            .map(Into::into)
+            .map(PyArcStr)
             .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyIndexError, _>("index out of range"))
     }
 
@@ -58,31 +69,8 @@ pub struct PyLineIter(LineIter);
 #[pymethods]
 impl PyLineIter {
     #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Option<PyLine> {
-        self.0.next().map(PyLine)
-    }
-}
-
-#[pyclass]
-pub struct PyLine(Line);
-
-#[pymethods]
-impl PyLine {
-    pub fn start(&self) -> usize {
-        self.0.start()
-    }
-
-    pub fn end(&self) -> usize {
-        self.0.end()
-    }
-
-    pub fn find(&self, pattern: String) -> Option<PyArcStr> {
-        self.0.find(pattern.as_str()).map(PyArcStr)
-    }
-
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
+    pub fn next(&mut self) -> Option<PyArcStr> {
+        self.0.next().map(Into::into).map(PyArcStr)
     }
 }
 
@@ -99,17 +87,36 @@ impl PyArcStr {
         self.0.end()
     }
 
+    pub fn find_str(&self, pattern: String) -> Option<PyArcStr> {
+        self.0.find(pattern.as_str()).map(PyArcStr)
+    }
+
+    pub fn find_regex(&self, pattern: PyCompiledRegex) -> Option<PyArcStr> {
+        self.0.find(pattern.into_inner()).map(PyArcStr)
+    }
+
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         self.0.to_string()
     }
 }
 
-#[pymodule]
-fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<PyBuffer>()?;
-    m.add_class::<PyLineIter>()?;
-    m.add_class::<PyLine>()?;
-    m.add_class::<PyArcStr>()?;
-    Ok(())
+#[pyclass]
+#[derive(Debug, Clone)]
+pub struct PyCompiledRegex(Regex);
+
+#[pymethods]
+impl PyCompiledRegex {
+    #[new]
+    pub fn new(re: String) -> PyResult<Self> {
+        Ok(Self(Regex::new(&re).map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>("invlid pattern")
+        })?))
+    }
+}
+
+impl PyCompiledRegex {
+    pub fn into_inner(self) -> Regex {
+        self.0
+    }
 }

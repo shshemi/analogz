@@ -1,4 +1,4 @@
-from analogz import Buffer, LineIter, Line, ArcStr
+from analogz import Buffer, LineIter, ArcStr
 
 
 def test_buffer_init():
@@ -12,13 +12,13 @@ def test_buffer_to_string():
 
 def test_buffer_getitem():
     buff = Buffer("Line1\nLine2\nLine3")
-    assert isinstance(buff[0], Line)
+    assert isinstance(buff[0], ArcStr)
     assert str(buff[0]) == "Line1"
 
-    assert isinstance(buff[1], Line)
+    assert isinstance(buff[1], ArcStr)
     assert str(buff[1]) == "Line2"
 
-    assert isinstance(buff[2], Line)
+    assert isinstance(buff[2], ArcStr)
     assert str(buff[2]) == "Line3"
 
 def test_buffer_iter():
@@ -30,7 +30,7 @@ def test_buffer_iter():
     assert str(next(itr)) == "Line3"
 
     for line in buff:
-        assert isinstance(line, Line)
+        assert isinstance(line, ArcStr)
 
     lines = [str(line) for line in buff]
     assert lines == ["Line1", "Line2", "Line3"]
@@ -53,20 +53,38 @@ def test_buffer_getitem_slice3():
     assert isinstance(sb, Buffer)
     assert [str(line) for line in sb] == ["Line1","Line2"]
 
-def test_line_start_stop_find():
+def test_line_find_str():
     buff = Buffer("Line1\nLine2\nLine3")
     line0 = buff[0]
     line1 = buff[1]
-    assert isinstance(line0, Line)
-    assert isinstance(line1, Line)
+    assert isinstance(line0, ArcStr)
+    assert isinstance(line1, ArcStr)
 
-    found = line0.find("ne1")
+    found = line0.find_str("ne1")
     assert isinstance(found, ArcStr)
     assert found.start == 2 and found.stop == 5
 
-    found = line1.find("ne2")
+    found = line1.find_str("ne2")
     assert isinstance(found, ArcStr)
     assert found.start == 8 and found.stop == 11
 
-    not_found = line0.find("ne2")
+    not_found = line0.find_str("ne2")
+    assert not_found is None
+
+def test_line_find_regex():
+    buff = Buffer("Line1\nLine2\nLine3")
+    line0 = buff[0]
+    line1 = buff[1]
+    assert isinstance(line0, ArcStr)
+    assert isinstance(line1, ArcStr)
+
+    found = line0.find_regex(r"\d+")
+    assert isinstance(found, ArcStr)
+    assert found.start == 4 and found.stop == 5
+
+    found = line1.find_regex(r"[A-Z]")
+    assert isinstance(found, ArcStr)
+    assert found.start == 6 and found.stop == 7
+
+    not_found = line0.find_regex("[A-Z]{2}")
     assert not_found is None

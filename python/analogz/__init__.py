@@ -1,5 +1,6 @@
+import functools
 from typing import Optional, Union
-from ._lib_rs import PyBuffer, PyLine, PyLineIter, PyArcStr
+from ._lib_rs import PyBuffer, PyLineIter, PyArcStr, PyCompiledRegex
 
 class ArcStr:
     __slots__ = ["__arc_str"]
@@ -15,37 +16,21 @@ class ArcStr:
     def stop(self) -> int:
         return self.__arc_str.end()
 
-    def find(self, pattern: str) -> Optional["ArcStr"]:
-        astr = self.__arc_str.find(pattern)
+    def find_str(self, pattern: str) -> Optional["ArcStr"]:
+        astr = self.__arc_str.find_str(pattern)
+        if astr is None:
+            return None
+        return ArcStr(astr)
+
+    def find_regex(self, pattern: str) -> Optional["ArcStr"]:
+        pattern = compile_regex(pattern)
+        astr = self.__arc_str.find_regex(pattern)
         if astr is None:
             return None
         return ArcStr(astr)
 
     def __str__(self) -> str:
         return self.__arc_str.to_string()
-
-class Line:
-    __slots__ = ["__line"]
-
-    def __init__(self, line: PyLine):
-        self.__line = line
-
-    @property
-    def start(self) -> int:
-        return self.__line.start()
-
-    @property
-    def stop(self) -> int:
-        return self.__line.end()
-
-    def find(self, pattern: str) -> Optional[ArcStr]:
-        astr = self.__line.find(pattern)
-        if astr is None:
-            return None
-        return ArcStr(astr)
-
-    def __str__(self) -> str:
-        return self.__line.to_string()
 
 
 class LineIter:
@@ -61,7 +46,7 @@ class LineIter:
         next = self.__iter.next()
         if next is None:
             raise StopIteration()
-        return Line(next)
+        return ArcStr(next)
 
 class Buffer:
     __slots__ = ["__buffer"]
@@ -75,13 +60,18 @@ class Buffer:
     def __str__(self) -> str:
         return self.__buffer.to_string()
 
-    def __getitem__(self, idx) -> Union["Buffer", Line]:
+    def __getitem__(self, idx) -> Union["Buffer", ArcStr]:
         if isinstance(idx, slice):
             assert slice.step is not None, "Step is not supported"
             buf = Buffer.__new__(Buffer)
             buf.__buffer = self.__buffer.slice(idx.start, idx.stop)
             return buf
         elif isinstance(idx, int):
-            return Line(self.__buffer.get(idx))
+            return ArcStr(self.__buffer.get(idx))
         else:
             raise IndexError(f"Invalid index type: {type(idx)}")
+
+
+functools.lru_cache(maxsize=1024)
+def compile_regex(pattern: str) -> PyCompiledRegex:
+    return PyCompiledRegex(pattern)
