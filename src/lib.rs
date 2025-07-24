@@ -75,6 +75,7 @@ impl PyLineIter {
 }
 
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct PyArcStr(ArcStr);
 
 #[pymethods]
@@ -87,12 +88,8 @@ impl PyArcStr {
         self.0.end()
     }
 
-    pub fn find_str(&self, pattern: String) -> Option<PyArcStr> {
+    pub fn find(&self, pattern: String) -> Option<PyArcStr> {
         self.0.find(pattern.as_str()).map(PyArcStr)
-    }
-
-    pub fn find_regex(&self, pattern: PyCompiledRegex) -> Option<PyArcStr> {
-        self.0.find(pattern.into_inner()).map(PyArcStr)
     }
 
     #[allow(clippy::inherent_to_string)]
@@ -112,6 +109,13 @@ impl PyCompiledRegex {
         Ok(Self(Regex::new(&re).map_err(|_| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>("invlid pattern")
         })?))
+    }
+
+    pub fn find(&self, context: PyArcStr) -> Option<PyArcStr> {
+        self.0
+            .find(context.0.as_str())
+            .map(|m| context.0.slice(m.start()..m.end()))
+            .map(PyArcStr)
     }
 }
 

@@ -1,4 +1,4 @@
-from analogz import Buffer, LineIter, ArcStr
+from analogz import Buffer, LineIter, ArcStr, Regex
 
 
 def test_buffer_init():
@@ -60,15 +60,15 @@ def test_line_find_str():
     assert isinstance(line0, ArcStr)
     assert isinstance(line1, ArcStr)
 
-    found = line0.find_str("ne1")
+    found = line0.find("ne1")
     assert isinstance(found, ArcStr)
     assert found.start == 2 and found.stop == 5
 
-    found = line1.find_str("ne2")
+    found = line1.find("ne2")
     assert isinstance(found, ArcStr)
     assert found.start == 8 and found.stop == 11
 
-    not_found = line0.find_str("ne2")
+    not_found = line0.find("ne2")
     assert not_found is None
 
 def test_line_find_regex():
@@ -78,13 +78,16 @@ def test_line_find_regex():
     assert isinstance(line0, ArcStr)
     assert isinstance(line1, ArcStr)
 
-    found = line0.find_regex(r"\d+")
+    regex0 = Regex(r"\d+")
+    found = regex0.find(line0)
     assert isinstance(found, ArcStr)
     assert found.start == 4 and found.stop == 5
 
-    found = line1.find_regex(r"[A-Z]")
+    regex1 = Regex(r"[A-Z]")
+    found = regex1.find(line1)
     assert isinstance(found, ArcStr)
     assert found.start == 6 and found.stop == 7
 
-    not_found = line0.find_regex("[A-Z]{2}")
+    regex2 = Regex("[A-Z]{2}")
+    not_found = regex2.find(line0)
     assert not_found is None

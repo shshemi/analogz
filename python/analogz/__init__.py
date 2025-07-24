@@ -16,22 +16,14 @@ class ArcStr:
     def stop(self) -> int:
         return self.__arc_str.end()
 
-    def find_str(self, pattern: str) -> Optional["ArcStr"]:
-        astr = self.__arc_str.find_str(pattern)
-        if astr is None:
-            return None
-        return ArcStr(astr)
-
-    def find_regex(self, pattern: str) -> Optional["ArcStr"]:
-        pattern = compile_regex(pattern)
-        astr = self.__arc_str.find_regex(pattern)
+    def find(self, pattern: str) -> Optional["ArcStr"]:
+        astr = self.__arc_str.find(pattern)
         if astr is None:
             return None
         return ArcStr(astr)
 
     def __str__(self) -> str:
         return self.__arc_str.to_string()
-
 
 class LineIter:
     __slots__ = ["__iter"]
@@ -71,6 +63,18 @@ class Buffer:
         else:
             raise IndexError(f"Invalid index type: {type(idx)}")
 
+
+class Regex:
+    __slots__ = ["__regex"]
+
+    def __init__(self, pattern: str):
+        self.__regex = PyCompiledRegex(pattern)
+
+    def find(self, context: ArcStr) -> Optional[ArcStr]:
+        astr = self.__regex.find(context._ArcStr__arc_str)
+        if astr is None:
+            return None
+        return ArcStr(astr)
 
 functools.lru_cache(maxsize=1024)
 def compile_regex(pattern: str) -> PyCompiledRegex:

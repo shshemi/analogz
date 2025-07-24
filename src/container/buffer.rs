@@ -1,7 +1,5 @@
 use std::ops::{Deref, Range};
 
-use rayon::prelude::*;
-
 use super::{arc_str::ArcStr, line_index::LineIndex};
 
 /// A cheap-to-clone container for storage and retrieval of log lines.

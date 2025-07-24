@@ -6,4 +6,4 @@ mod traits;
 
 pub use arc_slice::ArcSlice;
 pub use arc_str::ArcStr;
-pub use buffer::{Buffer, Line, LineIter};
+pub use buffer::{Buffer, LineIter};
