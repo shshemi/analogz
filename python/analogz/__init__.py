@@ -1,6 +1,7 @@
 import functools
 from typing import Optional, Union
 from ._lib_rs import PyBuffer, PyLineIter, PyArcStr, PyCompiledRegex
+from typing import Tuple
 
 class ArcStr:
     __slots__ = ["__arc_str"]
@@ -16,17 +17,22 @@ class ArcStr:
     def stop(self) -> int:
         return self.__arc_str.end()
 
-    def py_arc_str(self) -> PyArcStr:
-        return self.__arc_str
-
     def find(self, pattern: str) -> Optional["ArcStr"]:
         astr = self.__arc_str.find(pattern)
         if astr is None:
             return None
         return ArcStr(astr)
 
+    def split(self, pos: int) -> Tuple["ArcStr", "ArcStr"]:
+        s1, s2 =  self.__arc_str.split_at(pos)
+        return ArcStr(s1), ArcStr(s2)
+
+
     def __str__(self) -> str:
         return self.__arc_str.to_string()
+
+    def py_arc_str(self) -> PyArcStr:
+        return self.__arc_str
 
 
 class LineIter:

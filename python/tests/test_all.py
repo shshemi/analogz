@@ -91,3 +91,14 @@ def test_line_find_regex():
     regex2 = Regex("[A-Z]{2}")
     not_found = regex2.find(line0)
     assert not_found is None
+
+def test_arc_str_split_at():
+    buff = Buffer("This is new")
+    line0 = buff[0]
+    assert isinstance(line0, ArcStr)
+
+    this, is_new = line0.split(4)
+    assert isinstance(this, ArcStr)
+    assert str(this) == "This"
+    assert isinstance(is_new, ArcStr)
+    assert str(is_new) == " is new"

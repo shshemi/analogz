@@ -92,6 +92,11 @@ impl PyArcStr {
         self.0.find(pattern.as_str()).map(PyArcStr)
     }
 
+    pub fn split_at(&self, at: usize) -> (PyArcStr, PyArcStr) {
+        let (s1, s2) = self.0.split_at(at);
+        (PyArcStr(s1), PyArcStr(s2))
+    }
+
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         self.0.to_string()

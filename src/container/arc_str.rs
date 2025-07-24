@@ -70,13 +70,13 @@ impl ArcStr {
             std::ops::Bound::Excluded(i) => self.start + i + 1,
             std::ops::Bound::Unbounded => self.start,
         }
-        .min(self.end);
+        .clamp(self.start, self.end);
         let end = match rng.end_bound() {
             std::ops::Bound::Included(i) => self.start + i + 1,
             std::ops::Bound::Excluded(i) => self.start + i,
             std::ops::Bound::Unbounded => self.end,
         }
-        .min(self.end);
+        .clamp(self.start, self.end);
         Self {
             astr: Arc::clone(&self.astr),
             start,
