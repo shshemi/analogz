@@ -16,6 +16,9 @@ class ArcStr:
     def stop(self) -> int:
         return self.__arc_str.end()
 
+    def py_arc_str(self) -> PyArcStr:
+        return self.__arc_str
+
     def find(self, pattern: str) -> Optional["ArcStr"]:
         astr = self.__arc_str.find(pattern)
         if astr is None:
@@ -24,6 +27,7 @@ class ArcStr:
 
     def __str__(self) -> str:
         return self.__arc_str.to_string()
+
 
 class LineIter:
     __slots__ = ["__iter"]
@@ -71,7 +75,7 @@ class Regex:
         self.__regex = PyCompiledRegex(pattern)
 
     def find(self, context: ArcStr) -> Optional[ArcStr]:
-        astr = self.__regex.find(context._ArcStr__arc_str)
+        astr = self.__regex.find(context.py_arc_str())
         if astr is None:
             return None
         return ArcStr(astr)
