@@ -106,6 +106,14 @@ impl PyArcStr {
         self.0.contains(other.0)
     }
 
+    pub fn boundries(&self) -> (usize, usize) {
+        (self.0.start(), self.0.end())
+    }
+
+    pub fn rel_position(&self, anchor: PyArcStr) -> Option<isize> {
+        anchor.0.relative_position(&self.0)
+    }
+
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         self.0.to_string()

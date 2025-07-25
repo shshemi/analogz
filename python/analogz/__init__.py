@@ -32,6 +32,12 @@ class ArcStr:
             return self.__arc_str.contains(PyArcStr(other))
         return self.__arc_str.contains(other.__arc_str)
 
+    def boundries(self) -> Tuple[int, int]:
+        return self.__arc_str.boundries()
+
+    def rel_position(self, anchor: "ArcStr") -> Optional[int]:
+        return self.__arc_str.rel_position(anchor.py_arc_str())
+
     def __contains__(self, other) -> bool:
         return self.contains(other)
 

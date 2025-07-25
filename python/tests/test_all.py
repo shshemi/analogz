@@ -1,4 +1,5 @@
 from analogz import Buffer, LineIter, ArcStr, Regex
+from test.test_traceback import boundaries
 
 
 def test_buffer_init():
@@ -110,3 +111,19 @@ def test_arc_str_contains():
 
     assert (" is " in line0)
     assert ("old" not in line0)
+
+def test_arc_str_boundries():
+    buff = Buffer("Line1\nLine2\nLine3")
+    line = buff[1]
+    assert isinstance(line, ArcStr)
+
+    assert line.boundries() == (6, 11)
+
+def test_arc_str_rel_position():
+    buff = Buffer("Line1\nLine2\nLine3")
+    line0 = buff[0]
+    line1 = buff[1]
+    assert isinstance(line0, ArcStr)
+    assert isinstance(line1, ArcStr)
+
+    assert line0.rel_position(line1) == -6
