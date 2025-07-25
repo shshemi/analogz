@@ -102,3 +102,11 @@ def test_arc_str_split_at():
     assert str(this) == "This"
     assert isinstance(is_new, ArcStr)
     assert str(is_new) == " is new"
+
+def test_arc_str_contains():
+    buff = Buffer("This is new")
+    line0 = buff[0]
+    assert isinstance(line0, ArcStr)
+
+    assert (" is " in line0)
+    assert ("old" not in line0)

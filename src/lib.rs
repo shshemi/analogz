@@ -80,6 +80,11 @@ pub struct PyArcStr(ArcStr);
 
 #[pymethods]
 impl PyArcStr {
+    #[new]
+    pub fn new(s: String) -> Self {
+        PyArcStr(ArcStr::new(s))
+    }
+
     pub fn start(&self) -> usize {
         self.0.start()
     }
@@ -95,6 +100,10 @@ impl PyArcStr {
     pub fn split_at(&self, at: usize) -> (PyArcStr, PyArcStr) {
         let (s1, s2) = self.0.split_at(at);
         (PyArcStr(s1), PyArcStr(s2))
+    }
+
+    pub fn contains(&self, other: PyArcStr) -> bool {
+        self.0.contains(other.0)
     }
 
     #[allow(clippy::inherent_to_string)]

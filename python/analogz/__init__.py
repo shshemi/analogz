@@ -27,6 +27,13 @@ class ArcStr:
         s1, s2 =  self.__arc_str.split_at(pos)
         return ArcStr(s1), ArcStr(s2)
 
+    def contains(self, other) -> bool:
+        if not isinstance(other, PyArcStr):
+            return self.__arc_str.contains(PyArcStr(other))
+        return self.__arc_str.contains(other.__arc_str)
+
+    def __contains__(self, other) -> bool:
+        return self.contains(other)
 
     def __str__(self) -> str:
         return self.__arc_str.to_string()

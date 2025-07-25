@@ -96,6 +96,11 @@ impl ArcStr {
         &self.astr[self.start..self.end]
     }
 
+    pub fn contains(&self, other: ArcStr) -> bool {
+        (Arc::ptr_eq(&self.astr, &other.astr) && self.start <= other.start && other.end <= self.end)
+            || self.as_str().contains(other.as_str())
+    }
+
     /// Returns the relative position (as an `isize`) of another `ArcStr`'s start
     /// index with respect to this `ArcStr`'s start index, if both slices refer to
     /// the same underlying `Arc<str>`. If they do not, returns `None`.
