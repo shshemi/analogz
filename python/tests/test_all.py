@@ -127,3 +127,17 @@ def test_arc_str_rel_position():
     assert isinstance(line1, ArcStr)
 
     assert line0.rel_position(line1) == -6
+
+def test_getitem():
+    buff = Buffer("This is new")
+    line = buff[0]
+    assert isinstance(line, ArcStr)
+    this = line[:4]
+    _is_ = line[4: 8]
+    new = line[8:]
+    assert isinstance(this, ArcStr)
+    assert isinstance(_is_, ArcStr)
+    assert isinstance(new, ArcStr)
+    assert str(this) == "This"
+    assert str(_is_) == " is "
+    assert str(new) == "new"

@@ -44,6 +44,15 @@ class ArcStr:
     def __str__(self) -> str:
         return self.__arc_str.to_string()
 
+    def __getitem__(self, idx) -> "ArcStr":
+        if isinstance(idx, slice):
+            assert slice.step is not None, "Step is not supported"
+            return ArcStr(self.__arc_str.slice(idx.start, idx.stop))
+        elif isinstance(idx, int):
+            return ArcStr(self.__arc_str.slice(idx, idx + 1))
+        else:
+            raise IndexError(f"Invalid index type: {type(idx)}")
+
     def py_arc_str(self) -> PyArcStr:
         return self.__arc_str
 

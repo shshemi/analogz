@@ -93,6 +93,34 @@ impl PyArcStr {
         self.0.end()
     }
 
+    pub fn slice(&self, start: Option<usize>, end: Option<usize>) -> PyResult<Self> {
+        let mut itr = self
+            .0
+            .as_str()
+            .char_indices()
+            .chain(std::iter::once((self.0.len() + 1, '\0')))
+            .enumerate();
+        let start = if let Some(start) = start {
+            itr.find_map(|(ci, (bi, _))| ci.eq(&start).then_some(bi))
+                .ok_or(PyErr::new::<pyo3::exceptions::PyIndexError, _>(
+                    "index out of range",
+                ))?
+        } else {
+            0
+        };
+
+        let end = if let Some(end) = end {
+            itr.find_map(|(ci, (bi, _))| ci.eq(&end).then_some(bi))
+                .ok_or(PyErr::new::<pyo3::exceptions::PyIndexError, _>(
+                    "index out of range",
+                ))?
+        } else {
+            self.0.len()
+        };
+
+        Ok(Self(self.0.slice(start..end)))
+    }
+
     pub fn find(&self, pattern: String) -> Option<PyArcStr> {
         self.0.find(pattern.as_str()).map(PyArcStr)
     }
