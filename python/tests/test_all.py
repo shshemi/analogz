@@ -1,5 +1,4 @@
 from analogz import Buffer, LineIter, ArcStr, Regex
-from test.test_traceback import boundaries
 
 
 def test_buffer_init():
