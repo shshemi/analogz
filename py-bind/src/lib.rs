@@ -2,7 +2,7 @@ use polars::frame::DataFrame;
 use pyo3::prelude::*;
 use regex::Regex;
 
-use analogz::container::{ArcStr, Buffer, LineIter};
+use analogz::containers::{ArcStr, Buffer, LineIter};
 
 #[pymodule]
 fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {

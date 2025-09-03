@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use crate::container::ArcStr;
+use crate::containers::ArcStr;
 
 pub trait Find {
     fn find(&self, corpus: &ArcStr) -> Option<ArcStr>;

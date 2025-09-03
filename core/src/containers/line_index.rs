@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use std::ops::Range;
 
-use crate::container::ArcSlice;
+use crate::containers::ArcSlice;
 
 #[derive(Debug, Clone)]
 pub struct LineIndex {
