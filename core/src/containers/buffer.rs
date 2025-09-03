@@ -11,7 +11,7 @@ use super::{arc_str::ArcStr, line_index::LineIndex};
 /// # Examples
 ///
 /// ```
-/// use analogz::container::Buffer;
+/// use analogz::containers::Buffer;
 ///
 /// let logs = Buffer::new("line 1\nline 2\nline 3".to_string());
 /// assert_eq!(logs.len(), 3);
@@ -114,7 +114,7 @@ impl Buffer {
     /// # Examples
     ///
     /// ```
-    /// use analogz::container::Buffer;
+    /// use analogz::containers::Buffer;
     ///
     /// let logs = Buffer::new("line 1\nline 2\nline 3\nline 4".to_string());
     /// let middle_lines = logs.slice(1..3);
@@ -138,7 +138,7 @@ impl Buffer {
     /// # Examples
     ///
     /// ```
-    /// use analogz::container::Buffer;
+    /// use analogz::containers::Buffer;
     ///
     /// let logs = Buffer::new("line 1\nline 2\nline 3".to_string());
     ///
