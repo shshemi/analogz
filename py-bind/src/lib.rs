@@ -1,10 +1,8 @@
-mod container;
-
 use polars::frame::DataFrame;
 use pyo3::prelude::*;
 use regex::Regex;
 
-use crate::container::{ArcStr, Buffer, LineIter};
+use analogz::container::{ArcStr, Buffer, LineIter};
 
 #[pymodule]
 fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
