@@ -67,7 +67,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_step_zero_panics() {
-        let sr = SteppedRange::new(0, 3, 0);
+        SteppedRange::new(0, 3, 0);
     }
 
     #[test]
