@@ -17,19 +17,16 @@ impl LineIndex {
                 line_ends: Vec::default().into(),
             }
         } else {
-            let mut line_ends = std::thread::scope(|scope| {
+            let line_ends = std::thread::scope(|scope| {
                 std::iter::once(0)
                     .chain(
                         chunk_str(corpus, num_cpus::get())
                             .map(|(offset, slice)| scope.spawn(move || new_lines(slice, offset)))
                             .flat_map(|hndl| hndl.join().unwrap()),
                     )
+                    .chain([corpus.len()])
                     .collect_vec()
             });
-
-            if line_ends.last().copied() != Some(corpus.len()) {
-                line_ends.push(corpus.len());
-            }
 
             LineIndex {
                 line_ends: line_ends.into(),
