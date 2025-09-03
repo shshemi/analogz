@@ -1,5 +1,9 @@
 use std::ops::{Deref, Range};
 
+use itertools::Itertools;
+
+use crate::{containers::ArcSlice, misc::stepped_range::SteppedRange};
+
 use super::{arc_str::ArcStr, line_index::LineIndex};
 
 /// A cheap-to-clone container for storage and retrieval of log lines.
@@ -152,6 +156,26 @@ impl Buffer {
             idx: 0,
         }
     }
+
+    /// Parallel map over all lines, preserving order and indices.
+    pub fn map<F, O>(&self, f: F) -> ArcSlice<O>
+    where
+        O: Clone + Sync + Send,
+        F: Fn(Line) -> O + Sync + Send + Clone,
+    {
+        let slice_size = (self.len() / num_cpus::get()).max(1);
+        std::thread::scope(|scope| {
+            SteppedRange::new(0, self.len(), slice_size)
+                .map(|offset| {
+                    let f = f.clone();
+                    scope.spawn(move || self.slice(offset..offset + slice_size).into_iter().map(f))
+                })
+                .filter_map(|hndl| hndl.join().ok())
+                .flatten()
+                .collect_vec()
+        })
+        .into()
+    }
 }
 
 /// Iterator over the lines in a `Buffer`.
@@ -170,6 +194,18 @@ impl Iterator for LineIter {
         self.buffer.get(self.idx).inspect(|_| {
             self.idx += 1;
         })
+    }
+}
+
+impl IntoIterator for Buffer {
+    type Item = Line;
+    type IntoIter = LineIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        LineIter {
+            buffer: self,
+            idx: 0,
+        }
     }
 }
 
@@ -409,5 +445,84 @@ mod tests {
 
         // Try to access line 5 (index 4 in original buffer, but out of range in the slice)
         assert!(slice.get(3).is_none());
+    }
+
+    #[test]
+    fn map_preserves_order_across_chunks() {
+        // Build content with many lines to ensure chunking across CPUs
+        let mut content = String::new();
+        for i in 0..1234 {
+            content.push_str(&format!("Line {i}\n"));
+        }
+        // trailing empty line is included by design
+        let buffer = Buffer::new(content);
+
+        // Map each line to its exact string
+        let mapped: ArcSlice<Option<String>> = buffer.map(|line| Some(line.as_str().to_string()));
+        let slice: &[Option<String>] = &mapped;
+
+        // Expect len == lines + trailing empty line
+        assert_eq!(slice.len(), buffer.len());
+
+        // Spot-check several indices straddle chunk boundaries regardless of CPU count.
+        // Check first, a middle, last-1 (before empty), and last (empty).
+        assert_eq!(slice.first().unwrap().as_deref(), Some("Line 0"));
+        assert_eq!(slice.get(617).unwrap().as_deref(), Some("Line 617"));
+        assert_eq!(slice.get(1233).unwrap().as_deref(), Some("Line 1233"));
+        assert_eq!(slice.last().unwrap().as_deref(), Some(""));
+    }
+
+    #[test]
+    fn map_retains_none_entries_without_dropping() {
+        let content = "a\nb\nc\nd\ne\n".to_string();
+        let buffer = Buffer::new(content);
+
+        let mapped: ArcSlice<Option<&'static str>> =
+            buffer.map(|line| match line.as_str().chars().next() {
+                Some('a') | Some('c') | Some('e') => None,
+                Some('b') | Some('d') => Some("ok"),
+                _ => Some("empty"),
+            });
+
+        let slice: &[Option<&str>] = &mapped;
+        assert_eq!(slice.len(), buffer.len());
+        assert_eq!(slice[0], None);
+        assert_eq!(slice[1], Some("ok"));
+        assert_eq!(slice[2], None);
+        assert_eq!(slice[3], Some("ok"));
+        assert_eq!(slice[4], None);
+        assert_eq!(slice[5], Some("empty"));
+    }
+
+    #[test]
+    fn map_can_use_line_offsets_correctly() {
+        let content = "one\n\ntwo\nthree\n".to_string();
+        let buffer = Buffer::new(content);
+
+        let mapped: ArcSlice<Option<(usize, usize)>> =
+            buffer.map(|line| Some((line.start(), line.end())));
+        let slice: &[(usize, usize)] = &mapped.iter().map(|o| o.unwrap()).collect::<Vec<_>>();
+
+        assert_eq!(slice, &[(0, 3), (4, 4), (5, 8), (9, 14), (15, 15),]);
+    }
+
+    #[test]
+    fn map_handles_large_input_correctly() {
+        let n = 5000usize;
+        let mut content = String::new();
+        for i in 0..n {
+            content.push_str(&format!("L{i}\n"));
+        }
+        let buffer = Buffer::new(content);
+        let mapped: ArcSlice<Option<usize>> = buffer.map(|line| Some(line.as_str().len()));
+
+        let slice: &[Option<usize>] = &mapped;
+        assert_eq!(slice.len(), n + 1);
+
+        // Spot checks
+        assert_eq!(slice[0], Some("L0".len()));
+        assert_eq!(slice[n / 2], Some(format!("L{}", n / 2).len()));
+        assert_eq!(slice[n - 1], Some(format!("L{}", n - 1).len()));
+        assert_eq!(slice[n], Some(0));
     }
 }
