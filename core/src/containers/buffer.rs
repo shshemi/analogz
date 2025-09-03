@@ -157,11 +157,19 @@ impl Buffer {
         }
     }
 
-    /// Parallel map over all lines, preserving order and indices.
+    /// Map over all lines, preserving order and indices.
     pub fn map<F, O>(&self, f: F) -> ArcSlice<O>
     where
-        O: Clone + Sync + Send,
-        F: Fn(Line) -> O + Sync + Send + Clone,
+        F: FnMut(Line) -> O,
+    {
+        self.iter().map(f).collect_vec().into()
+    }
+
+    /// Parallel map over all lines, preserving order and indices.
+    pub fn par_map<F, O>(&self, f: F) -> ArcSlice<O>
+    where
+        O: Send,
+        F: Fn(Line) -> O + Send + Clone,
     {
         let slice_size = (self.len() / num_cpus::get()).max(1);
         std::thread::scope(|scope| {
@@ -225,6 +233,10 @@ impl Line {
 
     pub fn end(&self) -> usize {
         self.astr.end()
+    }
+
+    pub fn into_arc_str(self) -> ArcStr {
+        self.astr
     }
 }
 
@@ -458,7 +470,8 @@ mod tests {
         let buffer = Buffer::new(content);
 
         // Map each line to its exact string
-        let mapped: ArcSlice<Option<String>> = buffer.map(|line| Some(line.as_str().to_string()));
+        let mapped: ArcSlice<Option<String>> =
+            buffer.par_map(|line| Some(line.as_str().to_string()));
         let slice: &[Option<String>] = &mapped;
 
         // Expect len == lines + trailing empty line
@@ -478,7 +491,7 @@ mod tests {
         let buffer = Buffer::new(content);
 
         let mapped: ArcSlice<Option<&'static str>> =
-            buffer.map(|line| match line.as_str().chars().next() {
+            buffer.par_map(|line| match line.as_str().chars().next() {
                 Some('a') | Some('c') | Some('e') => None,
                 Some('b') | Some('d') => Some("ok"),
                 _ => Some("empty"),
@@ -500,7 +513,7 @@ mod tests {
         let buffer = Buffer::new(content);
 
         let mapped: ArcSlice<Option<(usize, usize)>> =
-            buffer.map(|line| Some((line.start(), line.end())));
+            buffer.par_map(|line| Some((line.start(), line.end())));
         let slice: &[(usize, usize)] = &mapped.iter().map(|o| o.unwrap()).collect::<Vec<_>>();
 
         assert_eq!(slice, &[(0, 3), (4, 4), (5, 8), (9, 14), (15, 15),]);
@@ -514,7 +527,7 @@ mod tests {
             content.push_str(&format!("L{i}\n"));
         }
         let buffer = Buffer::new(content);
-        let mapped: ArcSlice<Option<usize>> = buffer.map(|line| Some(line.as_str().len()));
+        let mapped: ArcSlice<Option<usize>> = buffer.par_map(|line| Some(line.as_str().len()));
 
         let slice: &[Option<usize>] = &mapped;
         assert_eq!(slice.len(), n + 1);
