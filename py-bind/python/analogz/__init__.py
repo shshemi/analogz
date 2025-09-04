@@ -1,5 +1,5 @@
 import functools
-from typing import Optional, Union
+from typing import Optional, Union, Callable, TypeVar, List
 from ._lib_rs import PyBuffer, PyLineIter, PyArcStr, PyCompiledRegex
 from typing import Tuple
 
@@ -52,6 +52,9 @@ class ArcStr:
             return ArcStr(self.__arc_str.slice(idx, idx + 1))
         else:
             raise IndexError(f"Invalid index type: {type(idx)}")
+
+    def __len__(self) -> int:
+        return self.__arc_str.char_count()
 
     def py_arc_str(self) -> PyArcStr:
         return self.__arc_str
