@@ -1,9 +1,7 @@
 use crate::containers::traits::Find;
 use std::{
     fmt::Debug,
-    iter::Skip,
     ops::{Deref, RangeBounds},
-    str::CharIndices,
     sync::Arc,
 };
 
@@ -126,18 +124,6 @@ impl ArcStr {
     pub fn relative_position(&self, other: &ArcStr) -> Option<isize> {
         Arc::ptr_eq(&self.astr, &other.astr).then_some(other.start as isize - self.start as isize)
     }
-
-    pub fn sliding_window(&self, size: usize) -> SlidingWindow {
-        if size == 0 {
-            panic!("Invalid size: {size}")
-        }
-
-        SlidingWindow {
-            astr: self.clone(),
-            start: self.char_indices(),
-            end: self.char_indices().skip(size.saturating_sub(1)),
-        }
-    }
 }
 
 impl<C> From<C> for ArcStr
@@ -160,23 +146,6 @@ impl Deref for ArcStr {
 
     fn deref(&self) -> &Self::Target {
         self.as_str()
-    }
-}
-
-pub struct SlidingWindow<'a> {
-    astr: ArcStr,
-    start: CharIndices<'a>,
-    end: Skip<CharIndices<'a>>,
-}
-
-impl<'a> Iterator for SlidingWindow<'a> {
-    type Item = ArcStr;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let start = self.start.next()?.0;
-        let (end, c) = self.end.next()?;
-        let slice = self.astr.slice(start..(end + c.len_utf8()));
-        (!slice.is_empty()).then_some(slice)
     }
 }
 

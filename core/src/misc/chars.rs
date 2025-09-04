@@ -1,32 +1,31 @@
 use crate::containers::ArcStr;
 
 #[derive(Debug)]
-pub struct CharsIndices {
+pub struct CharIndices {
     astr: ArcStr,
     offset: usize,
 }
 
-impl Iterator for CharsIndices {
+impl Iterator for CharIndices {
     type Item = (usize, char);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.astr.as_str().chars().next().map(|c| {
+        self.astr.as_str()[self.offset..].chars().next().map(|c| {
             let o = self.offset;
             let l = c.len_utf8();
             self.offset += l;
-            self.astr = self.astr.slice(l..);
             (o, c)
         })
     }
 }
 
-pub trait CharsExt {
-    fn chars(self) -> CharsIndices;
+pub trait CharIndicesExt {
+    fn char_indices(self) -> CharIndices;
 }
 
-impl CharsExt for ArcStr {
-    fn chars(self) -> CharsIndices {
-        CharsIndices {
+impl CharIndicesExt for ArcStr {
+    fn char_indices(self) -> CharIndices {
+        CharIndices {
             astr: self,
             offset: 0,
         }
@@ -38,8 +37,8 @@ mod chars_indices_tests {
     use super::*;
 
     // Small helper to build the iterator from a &str
-    fn mk(s: &str) -> CharsIndices {
-        CharsIndices {
+    fn mk(s: &str) -> CharIndices {
+        CharIndices {
             astr: ArcStr::new(s),
             offset: 0,
         }
@@ -121,7 +120,7 @@ mod chars_indices_tests {
         // Base: "hello world", slice: "lo world" (starts at byte 3)
         let base = ArcStr::new("hello world");
         let slice = base.slice(3..); // "lo world"
-        let mut it = CharsIndices {
+        let mut it = CharIndices {
             astr: slice,
             offset: 0,
         };
@@ -153,7 +152,7 @@ mod chars_indices_tests {
     #[test]
     fn original_arcstr_is_not_mutated_when_cloned_into_iterator() {
         let base = ArcStr::new("stay");
-        let mut it = CharsIndices {
+        let mut it = CharIndices {
             astr: base.clone(),
             offset: 0,
         };
@@ -174,20 +173,20 @@ mod chars_indices_tests {
 
     #[test]
     fn chars_on_empty_returns_none() {
-        let mut it = ArcStr::new("").chars();
+        let mut it = ArcStr::new("").char_indices();
         assert_eq!(it.next(), None);
     }
 
     #[test]
     fn chars_starts_with_zero_offset_for_ascii() {
-        let mut it = ArcStr::new("a").chars();
+        let mut it = ArcStr::new("a").char_indices();
         assert_eq!(it.next(), Some((0, 'a')));
     }
 
     #[test]
     fn chars_starts_with_zero_offset_for_multibyte() {
         // '€' is 3 bytes; first yielded offset must be 0
-        let mut it = ArcStr::new("€").chars();
+        let mut it = ArcStr::new("€").char_indices();
         assert_eq!(it.next(), Some((0, '€')));
     }
 
@@ -195,14 +194,14 @@ mod chars_indices_tests {
     fn chars_on_slice_offsets_are_relative_to_slice() {
         let base = ArcStr::new("hello world");
         let slice = base.slice(6..); // "world"
-        let mut it = slice.chars();
+        let mut it = slice.char_indices();
         assert_eq!(it.next(), Some((0, 'w')));
     }
 
     #[test]
     fn chars_produces_same_sequence_as_std_char_indices_for_whole_string() {
         let s = "aé中🦀";
-        let ours: Vec<(usize, char)> = ArcStr::new(s).chars().collect();
+        let ours: Vec<(usize, char)> = ArcStr::new(s).char_indices().collect();
         let std_ci: Vec<(usize, char)> = s.char_indices().collect();
         assert_eq!(ours, std_ci);
     }
