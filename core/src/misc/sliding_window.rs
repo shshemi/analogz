@@ -23,19 +23,19 @@ impl Iterator for SlidingWindow {
 }
 
 pub trait SlidingWindowExt {
-    fn sliding_window(self, size: usize) -> SlidingWindow;
+    fn sliding_window(&self, size: usize) -> SlidingWindow;
 }
 
 impl SlidingWindowExt for ArcStr {
-    fn sliding_window(self, size: usize) -> SlidingWindow {
+    fn sliding_window(&self, size: usize) -> SlidingWindow {
         if size == 0 {
             panic!("Invalid size: {size}")
         }
 
         SlidingWindow {
-            start: self.clone().char_indices(),
-            end: self.clone().char_indices().skip(size.saturating_sub(1)),
-            astr: self,
+            astr: self.clone(),
+            start: self.char_indices(),
+            end: self.char_indices().skip(size.saturating_sub(1)),
         }
     }
 }

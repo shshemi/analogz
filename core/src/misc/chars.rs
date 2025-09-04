@@ -20,13 +20,13 @@ impl Iterator for CharIndices {
 }
 
 pub trait CharIndicesExt {
-    fn char_indices(self) -> CharIndices;
+    fn char_indices(&self) -> CharIndices;
 }
 
 impl CharIndicesExt for ArcStr {
-    fn char_indices(self) -> CharIndices {
+    fn char_indices(&self) -> CharIndices {
         CharIndices {
-            astr: self,
+            astr: self.clone(),
             offset: 0,
         }
     }
