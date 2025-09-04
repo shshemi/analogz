@@ -140,3 +140,10 @@ def test_getitem():
     assert str(this) == "This"
     assert str(_is_) == " is "
     assert str(new) == "new"
+
+def test_map():
+    buff = Buffer("Line1\nLine22\nLine333")
+    lc = buff.map(lambda x: len(x))
+    assert lc[0] == 5
+    assert lc[1] == 6
+    assert lc[2] == 7
