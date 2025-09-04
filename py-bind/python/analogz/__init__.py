@@ -72,6 +72,8 @@ class LineIter:
             raise StopIteration()
         return ArcStr(next)
 
+MapOut = TypeVar("MapOut")
+
 class Buffer:
     __slots__ = ["__buffer"]
 
@@ -94,6 +96,9 @@ class Buffer:
             return ArcStr(self.__buffer.get(idx))
         else:
             raise IndexError(f"Invalid index type: {type(idx)}")
+
+    def map(self, cb: Callable[[ArcStr], MapOut]) -> List[MapOut]:
+        return self.__buffer.map(lambda x: cb(ArcStr(x)))
 
 
 class Regex:

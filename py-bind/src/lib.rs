@@ -59,6 +59,17 @@ impl PyBuffer {
     pub fn to_string(&self) -> String {
         self.buffer.as_str().to_owned()
     }
+
+    pub fn map(&self, callable: PyObject) -> Vec<PyObject> {
+        Python::with_gil(|py| {
+            self.buffer.map(|line| {
+                callable
+                    .call1(py, (PyArcStr(line.into_arc_str()),))
+                    .unwrap()
+            })
+        })
+        .to_vec()
+    }
 }
 
 #[pyclass]
