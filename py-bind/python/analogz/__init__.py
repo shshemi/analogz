@@ -1,6 +1,6 @@
 import functools
 from typing import Optional, Union, Callable, TypeVar, List
-from ._lib_rs import PyBuffer, PyLineIter, PyArcStr, PyCompiledRegex
+from ._lib_rs import PyBuffer, PyLineIter, PyArcStr, PyRegex
 from typing import Tuple
 
 class ArcStr:
@@ -59,7 +59,6 @@ class ArcStr:
     def py_arc_str(self) -> PyArcStr:
         return self.__arc_str
 
-
 class LineIter:
     __slots__ = ["__iter"]
 
@@ -76,7 +75,6 @@ class LineIter:
         return ArcStr(next)
 
 MapOut = TypeVar("MapOut")
-
 class Buffer:
     __slots__ = ["__buffer"]
 
@@ -103,12 +101,11 @@ class Buffer:
     def map(self, cb: Callable[[ArcStr], MapOut]) -> List[MapOut]:
         return self.__buffer.map(lambda x: cb(ArcStr(x)))
 
-
 class Regex:
     __slots__ = ["__regex"]
 
     def __init__(self, pattern: str):
-        self.__regex = PyCompiledRegex(pattern)
+        self.__regex = PyRegex(pattern)
 
     def find(self, context: ArcStr) -> Optional[ArcStr]:
         astr = self.__regex.find(context.py_arc_str())
@@ -117,5 +114,5 @@ class Regex:
         return ArcStr(astr)
 
 functools.lru_cache(maxsize=1024)
-def compile_regex(pattern: str) -> PyCompiledRegex:
-    return PyCompiledRegex(pattern)
+def compile_regex(pattern: str) -> PyRegex:
+    return PyRegex(pattern)

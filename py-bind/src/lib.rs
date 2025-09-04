@@ -1,15 +1,14 @@
 use polars::frame::DataFrame;
 use pyo3::prelude::*;
-use regex::Regex;
 
-use analogz::containers::{ArcStr, Buffer, LineIter};
+use analogz::containers::{ArcStr, Buffer, LineIter, Regex};
 
 #[pymodule]
 fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyBuffer>()?;
     m.add_class::<PyLineIter>()?;
     m.add_class::<PyArcStr>()?;
-    m.add_class::<PyCompiledRegex>()?;
+    m.add_class::<PyRegex>()?;
     Ok(())
 }
 
@@ -163,10 +162,10 @@ impl PyArcStr {
 
 #[pyclass]
 #[derive(Debug, Clone)]
-pub struct PyCompiledRegex(Regex);
+pub struct PyRegex(Regex);
 
 #[pymethods]
-impl PyCompiledRegex {
+impl PyRegex {
     #[new]
     pub fn new(re: String) -> PyResult<Self> {
         Ok(Self(Regex::new(&re).map_err(|_| {
@@ -182,7 +181,7 @@ impl PyCompiledRegex {
     }
 }
 
-impl PyCompiledRegex {
+impl PyRegex {
     pub fn into_inner(self) -> Regex {
         self.0
     }
