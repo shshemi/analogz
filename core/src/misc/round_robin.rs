@@ -12,11 +12,13 @@ where
     type Item = I;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.queue.pop_front().and_then(|mut iter| {
-            let next = iter.next();
-            self.queue.push_back(iter);
-            next
-        })
+        while let Some(mut iter) = self.queue.pop_front() {
+            if let Some(item) = iter.next() {
+                self.queue.push_back(iter);
+                return Some(item);
+            }
+        }
+        None
     }
 }
 
