@@ -59,7 +59,6 @@ impl SplitChars for &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::iter;
 
     fn arc(s: &str) -> ArcStr {
         ArcStr::from(s)
@@ -156,7 +155,7 @@ mod tests {
 
     #[test]
     fn split_handles_long_input_without_delims() {
-        let long = iter::repeat('x').take(10_000).collect::<String>();
+        let long = "x".repeat(10_000);
         assert_eq!(parts(&long, ","), vec![long]);
     }
 }
