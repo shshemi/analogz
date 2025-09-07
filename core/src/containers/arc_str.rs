@@ -88,6 +88,14 @@ impl ArcStr {
         (self.slice(..idx), self.slice(idx..))
     }
 
+    pub fn split_at_two(&self, idx1: usize, idx2: usize) -> (Self, Self, Self) {
+        (
+            self.slice(..idx1),
+            self.slice(idx1..idx2),
+            self.slice(idx2..),
+        )
+    }
+
     pub fn find<F: Find>(&self, f: F) -> Option<Self> {
         f.find(self)
     }
