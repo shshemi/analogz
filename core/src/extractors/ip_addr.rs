@@ -1,5 +1,3 @@
-use std::{collections::HashSet, sync::Arc};
-
 use crate::{
     containers::{ArcStr, IpAddr},
     misc::split::SplitExt,
@@ -9,29 +7,13 @@ use crate::{
 #[error("Ip address not found")]
 pub struct IpAddrNotFound;
 
-#[derive(Debug, Clone)]
-pub struct IpAddrExtractor {
-    delims: Arc<HashSet<char>>,
-}
+#[derive(Debug, Clone, Default)]
+pub struct IpAddrExtractor {}
 
 impl IpAddrExtractor {
     pub fn extract(&self, text: ArcStr) -> Option<IpAddr> {
-        text.split(self.delims.clone())
-            // .map(|size| text.sliding_window(size))
-            // .round_robin()
-            .find_map(|slice| {
-                //
-                slice.parse::<IpAddr>().ok()
-            })
-    }
-}
-
-impl Default for IpAddrExtractor {
-    fn default() -> Self {
-        let symbols = " \"$'(),;<>@[]`{|}";
-        Self {
-            delims: Arc::new(symbols.chars().collect()),
-        }
+        text.split(" \"$'(),;<>@[]`{|}")
+            .find_map(|slice| slice.parse::<IpAddr>().ok())
     }
 }
 

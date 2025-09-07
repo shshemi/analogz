@@ -1,21 +1,22 @@
-use std::{collections::HashSet, sync::Arc};
-
 use crate::containers::ArcStr;
 
 #[derive(Debug)]
-pub struct Split {
+pub struct Split<S> {
     text: Option<ArcStr>,
-    delimiters: Arc<HashSet<char>>,
+    split_chars: S,
 }
 
-impl Iterator for Split {
+impl<SP> Iterator for Split<SP>
+where
+    SP: SplitChars,
+{
     type Item = ArcStr;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(text) = self.text.take() {
             if let Some((idx, ch)) = text
                 .char_indices()
-                .find(|(_, c)| self.delimiters.as_ref().contains(c))
+                .find(|(_, c)| self.split_chars.contains(c))
             {
                 let (next, _, text) = text.split_at_two(idx, idx + ch.len_utf8());
                 self.text = Some(text);
@@ -29,152 +30,133 @@ impl Iterator for Split {
     }
 }
 
-pub trait SplitExt {
-    fn split(&self, delimiters: impl Into<Arc<HashSet<char>>>) -> Split;
+pub trait SplitExt<S> {
+    fn split(&self, pattern: S) -> Split<S>;
 }
 
-impl SplitExt for ArcStr {
-    fn split(&self, delimiters: impl Into<Arc<HashSet<char>>>) -> Split {
+impl<S> SplitExt<S> for ArcStr
+where
+    S: SplitChars,
+{
+    fn split(&self, pattern: S) -> Split<S> {
         Split {
             text: Some(self.clone()),
-            delimiters: delimiters.into(),
+            split_chars: pattern,
         }
+    }
+}
+
+pub trait SplitChars {
+    fn contains(&self, c: &char) -> bool;
+}
+
+impl SplitChars for &str {
+    fn contains(&self, c: &char) -> bool {
+        self.chars().any(|a| &a == c)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
-    use std::sync::Arc;
+    use std::iter;
 
-    // Adjust this helper if your ArcStr constructor differs.
     fn arc(s: &str) -> ArcStr {
         ArcStr::from(s)
     }
 
-    fn delims(cs: &[char]) -> Arc<HashSet<char>> {
-        Arc::new(cs.iter().cloned().collect())
-    }
-
-    fn collect_strings(it: Split) -> Vec<String> {
-        it.map(|astr| astr.to_string()).collect()
-    }
-
-    #[test]
-    fn empty_delimiter_set_returns_whole_string_once() {
-        let s = arc("abc");
-        let empty: Arc<HashSet<char>> = Arc::new(HashSet::new());
-        let parts = collect_strings(s.split(empty));
-        assert_eq!(parts, vec!["abc"]);
+    fn parts(input: &str, pat: &str) -> Vec<String> {
+        arc(input)
+            .split(pat)
+            .map(|s| s.as_ref().to_string())
+            .collect()
     }
 
     #[test]
-    fn no_delimiters_in_text_returns_whole_string_once() {
-        let s = arc("abcdef");
-        let parts = collect_strings(s.split(delims(&[',', ';'])));
-        assert_eq!(parts, vec!["abcdef"]);
+    fn split_empty_input_yields_single_empty() {
+        assert_eq!(parts("", ","), vec![""]);
     }
 
     #[test]
-    fn single_delimiter_in_middle_splits_into_two_parts() {
-        let s = arc("a,b");
-        let parts = collect_strings(s.split(delims(&[','])));
-        assert_eq!(parts, vec!["a", "b"]);
+    fn split_no_delimiter_returns_whole() {
+        assert_eq!(parts("abc", ","), vec!["abc"]);
     }
 
     #[test]
-    fn delimiter_at_start_produces_leading_empty_segment() {
-        let s = arc(",abc");
-        let parts = collect_strings(s.split(delims(&[','])));
-        assert_eq!(parts, vec!["", "abc"]);
+    fn split_empty_pattern_never_matches() {
+        // &str::chars() is empty → contains() is false → no split
+        assert_eq!(parts("a,b,c", ""), vec!["a,b,c"]);
     }
 
     #[test]
-    fn delimiter_at_end_has_no_trailing_empty_segment() {
-        // With current implementation, trailing empty segment is NOT produced.
-        let s = arc("abc,");
-        let parts = collect_strings(s.split(delims(&[','])));
-        assert_eq!(parts, vec!["abc", ""]);
+    fn split_single_char_delim_basic() {
+        assert_eq!(parts("a,b,c", ","), vec!["a", "b", "c"]);
     }
 
     #[test]
-    fn consecutive_delimiters_produce_empty_middle_segment() {
-        // This test reveals the current bug: find() scans from start of whole string,
-        // not from self.start, which can cause panic or wrong result.
-        let s = arc("a,,b");
-        let parts = collect_strings(s.split(delims(&[','])));
-        assert_eq!(parts, vec!["a", "", "b"]);
+    fn split_multi_char_set_any_matches() {
+        assert_eq!(parts("a;b,c|d", ",;|"), vec!["a", "b", "c", "d"]);
     }
 
     #[test]
-    fn multiple_different_delimiters_are_respected() {
-        let s = arc("a;b,c:d");
-        let parts = collect_strings(s.split(delims(&[',', ';', ':'])));
-        assert_eq!(parts, vec!["a", "b", "c", "d"]);
+    fn split_leading_delimiter_yields_leading_empty_field() {
+        assert_eq!(parts(",a,b", ","), vec!["", "a", "b"]);
     }
 
     #[test]
-    fn unicode_delimiter_multi_byte_split() {
-        // '🙂' is 4 bytes in UTF-8
-        let s = arc("a🙂b🙂c");
-        let parts = collect_strings(s.split(delims(&['🙂'])));
-        assert_eq!(parts, vec!["a", "b", "c"]);
+    fn split_trailing_delimiter_yields_trailing_empty_field() {
+        assert_eq!(parts("a,b,", ","), vec!["a", "b", ""]);
     }
 
     #[test]
-    fn unicode_text_with_ascii_delimiter() {
-        let s = arc("αβγ,δεζ");
-        let parts = collect_strings(s.split(delims(&[','])));
-        assert_eq!(parts, vec!["αβγ", "δεζ"]);
+    fn split_consecutive_delimiters_yield_empty_fields_between() {
+        assert_eq!(parts("a,,b", ","), vec!["a", "", "b"]);
     }
 
     #[test]
-    fn delimiter_is_unicode_character() {
-        // Use a non-ASCII delimiter such as 'ø'
-        let s = arc("fooøbarøbaz");
-        let parts = collect_strings(s.split(delims(&['ø'])));
-        assert_eq!(parts, vec!["foo", "bar", "baz"]);
+    fn split_all_delimiters_only_yields_n_plus_one_empties() {
+        assert_eq!(parts(",,,", ","), vec!["", "", "", ""]);
     }
 
     #[test]
-    fn single_character_input_without_delimiter() {
-        let s = arc("x");
-        let parts = collect_strings(s.split(delims(&[','])));
-        assert_eq!(parts, vec!["x"]);
+    fn split_unicode_text_ascii_delim() {
+        assert_eq!(parts("α,β,γ", ","), vec!["α", "β", "γ"]);
     }
 
     #[test]
-    fn single_character_input_is_delimiter_yields_no_output() {
-        let s = arc(",");
-        let parts = collect_strings(s.split(delims(&[','])));
-        assert_eq!(parts, vec!["", ""]);
+    fn split_unicode_delimiter_emoji() {
+        assert_eq!(parts("a😀b😀c", "😀"), vec!["a", "b", "c"]);
     }
 
     #[test]
-    fn iterator_is_finite_and_exhausts_cleanly() {
-        let s = arc("a,b");
-        let mut it = s.split(delims(&[',']));
-        assert_eq!(it.next().as_ref().map(|x| x.as_ref()), Some("a"));
-        assert_eq!(it.next().as_ref().map(|x| x.as_ref()), Some("b"));
+    fn split_unicode_delimiter_multibyte_letter() {
+        assert_eq!(parts("fooøbarøbaz", "ø"), vec!["foo", "bar", "baz"]);
+    }
+
+    #[test]
+    fn split_does_not_consume_past_end_after_none() {
+        // After iterator returns None, it must keep returning None on subsequent calls.
+        let mut it = arc("a,b").split(",");
+        assert_eq!(it.next().as_deref(), Some("a"));
+        assert_eq!(it.next().as_deref(), Some("b"));
         assert_eq!(it.next(), None);
-        // Calling next again still yields None (not testing FusedIterator trait, just behavior)
+        // Call next() multiple times; still None
+        assert_eq!(it.next(), None);
         assert_eq!(it.next(), None);
     }
 
     #[test]
-    fn respects_current_start_offset() {
-        // Another test that will fail with current implementation because find() restarts at 0
-        let s = arc("ab,cd,ef");
-        let parts = collect_strings(s.split(delims(&[','])));
-        assert_eq!(parts, vec!["ab", "cd", "ef"]);
+    fn split_yields_entire_rest_when_no_more_delims() {
+        // Ensures branch that yields remaining text when find() returns None
+        let mut it = arc("a,bcd").split(",");
+        assert_eq!(it.next().as_deref(), Some("a"));
+        assert_eq!(it.next().as_deref(), Some("bcd"));
+        assert_eq!(it.next(), None);
     }
 
     #[test]
-    fn can_accept_arc_hashset_directly_via_splitext() {
-        let s = arc("a;b");
-        let set = delims(&[';']);
-        let parts = collect_strings(s.split(set));
-        assert_eq!(parts, vec!["a", "b"]);
+    fn split_handles_long_input_without_delims() {
+        let long = iter::repeat('x').take(10_000).collect::<String>();
+        assert_eq!(parts(&long, ","), vec![long]);
     }
 }
