@@ -12,7 +12,7 @@ pub struct IpAddrExtractor {}
 
 impl IpAddrExtractor {
     pub fn extract(&self, text: ArcStr) -> Option<IpAddr> {
-        text.split(" \"$'(),;<>@[]`{|}")
+        text.split(" \"$'(),;<>@[]`{|}=")
             .find_map(|slice| slice.parse::<IpAddr>().ok())
     }
 }
