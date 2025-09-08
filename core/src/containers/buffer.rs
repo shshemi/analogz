@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use crate::{containers::ArcSlice, misc::stepped_range::SteppedRange};
 
-use super::{arc_str::ArcStr, line_index::LineIndex};
+use super::{arc_str::ArcStr, cut_indices::CutIndices};
 
 /// A cheap-to-clone container for storage and retrieval of log lines.
 ///
@@ -33,7 +33,7 @@ use super::{arc_str::ArcStr, line_index::LineIndex};
 #[derive(Debug, Clone)]
 pub struct Buffer {
     astr: ArcStr,
-    index: LineIndex,
+    index: CutIndices,
 }
 
 impl Buffer {
@@ -49,7 +49,7 @@ impl Buffer {
     ///
     pub fn new(content: String) -> Buffer {
         Buffer {
-            index: LineIndex::build(&content),
+            index: CutIndices::build_par(&content, |c| c == &b'\n'),
             astr: ArcStr::from(content),
         }
     }
@@ -63,8 +63,8 @@ impl Buffer {
         if self.index.is_empty() {
             &self.astr
         } else {
-            let start = self.index.line_start(0).unwrap();
-            let end = self.index.line_end(self.index.len() - 1).unwrap();
+            let start = self.index.start(0).unwrap();
+            let end = self.index.end(self.index.len() - 1).unwrap();
             &self.astr[start..end]
         }
     }
@@ -98,8 +98,8 @@ impl Buffer {
     /// * `Some(Line)` for valid indices
     /// * `None` for invalid indices
     pub fn get(&self, idx: usize) -> Option<Line> {
-        let start = self.index.line_start(idx)?;
-        let end = self.index.line_end(idx)?;
+        let start = self.index.start(idx)?;
+        let end = self.index.end(idx)?;
         Some(Line {
             astr: self.astr.slice(start..end),
         })
@@ -129,7 +129,7 @@ impl Buffer {
     pub fn slice(&self, rng: Range<usize>) -> Buffer {
         Self {
             astr: self.astr.clone(),
-            index: self.index.slice(rng.start..rng.end + 1),
+            index: self.index.slice(rng.start..rng.end),
         }
     }
 

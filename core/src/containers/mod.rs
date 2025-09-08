@@ -1,9 +1,9 @@
 mod arc_slice;
 mod arc_str;
 mod buffer;
+mod cut_indices;
 mod date_time;
 mod ip_addr;
-mod line_index;
 mod regex;
 mod socket_addr;
 mod traits;
