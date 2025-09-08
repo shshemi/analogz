@@ -1,5 +1,5 @@
 use std::{
-    ops::{Deref, Range},
+    ops::{Deref, RangeBounds},
     sync::Arc,
 };
 
@@ -37,9 +37,21 @@ impl<T> ArcSlice<T> {
         }
     }
 
-    pub fn slice(&self, rng: Range<usize>) -> Self {
-        let start = (self.start + rng.start).min(self.end);
-        let end = (self.start + rng.end).min(self.end);
+    pub fn slice(&self, rng: impl RangeBounds<usize>) -> Self {
+        let start = match rng.start_bound() {
+            std::ops::Bound::Included(i) => self.start + i,
+            std::ops::Bound::Excluded(i) => self.start + i + 1,
+            std::ops::Bound::Unbounded => self.start,
+        }
+        .clamp(self.start, self.end);
+        let end = match rng.end_bound() {
+            std::ops::Bound::Included(i) => self.start + i + 1,
+            std::ops::Bound::Excluded(i) => self.start + i,
+            std::ops::Bound::Unbounded => self.end,
+        }
+        .clamp(self.start, self.end);
+        // let start = (self.start + rng.start).min(self.end);
+        // let end = (self.start + rng.end).min(self.end);
 
         Self {
             slice: self.slice.clone(),
