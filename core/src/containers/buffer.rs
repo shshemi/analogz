@@ -60,13 +60,9 @@ impl Buffer {
     ///
     /// A `&str` containing the entire log content
     pub fn as_str(&self) -> &str {
-        if self.index.is_empty() {
-            &self.astr
-        } else {
-            let start = self.index.start(0).unwrap();
-            let end = self.index.end(self.index.len() - 1).unwrap();
-            &self.astr[start..end]
-        }
+        let start = self.index.start(0).unwrap();
+        let end = self.index.end(self.index.len() - 1).unwrap();
+        &self.astr[start..end]
     }
 
     /// Returns the number of lines in the log buffer.
@@ -261,11 +257,11 @@ mod tests {
     #[test]
     fn test_empty_buffer() {
         let buffer = Buffer::new(String::new());
-        assert!(buffer.is_empty());
-        assert_eq!(buffer.len(), 0);
+        assert!(!buffer.is_empty());
+        assert_eq!(buffer.len(), 1);
         assert_eq!(buffer.as_str(), "");
-        assert!(buffer.get(0).is_none());
-        assert_eq!(buffer.iter().count(), 0);
+        assert_eq!(buffer.get(0).unwrap().as_str(), "");
+        assert_eq!(buffer.iter().count(), 1);
     }
 
     #[test]

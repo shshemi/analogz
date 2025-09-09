@@ -11,6 +11,7 @@ mod traits;
 pub use arc_slice::ArcSlice;
 pub use arc_str::ArcStr;
 pub use buffer::{Buffer, LineIter};
+pub use cut_indices::CutIndices;
 pub use date_time::DateTime;
 pub use ip_addr::IpAddr;
 pub use regex::Regex;

@@ -6,32 +6,26 @@ use crate::containers::ArcSlice;
 
 #[derive(Debug, Clone)]
 pub struct CutIndices {
-    cuts: ArcSlice<usize>,
+    indices: ArcSlice<usize>,
 }
 
 impl CutIndices {
     pub fn build<T, F>(arr: impl AsRef<[T]>, f: F) -> Self
     where
-        F: Fn(&T) -> bool + Clone + 'static,
+        F: Fn(&T) -> bool,
     {
         let arr = arr.as_ref();
-        if arr.is_empty() {
-            CutIndices {
-                cuts: Vec::default().into(),
-            }
-        } else {
-            let line_ends = std::iter::once(0)
-                .chain(
-                    arr.iter()
-                        .enumerate()
-                        .filter_map(move |(i, c)| (f(c)).then_some(i)),
-                )
-                .chain([arr.len()])
-                .collect_vec();
+        let indices = std::iter::once(0)
+            .chain(
+                arr.iter()
+                    .enumerate()
+                    .filter_map(move |(i, c)| (f(c)).then_some(i)),
+            )
+            .chain([arr.len()])
+            .collect_vec();
 
-            CutIndices {
-                cuts: line_ends.into(),
-            }
+        CutIndices {
+            indices: indices.into(),
         }
     }
 
@@ -41,59 +35,53 @@ impl CutIndices {
         F: Fn(&T) -> bool + Send + Clone + 'static,
     {
         let arr = arr.as_ref();
-        if arr.is_empty() {
-            CutIndices {
-                cuts: Vec::default().into(),
-            }
-        } else {
-            let line_ends = std::thread::scope(|scope| {
-                let chunk_size = num_cpus::get();
-                std::iter::once(0)
-                    .chain(
-                        arr.chunks(chunk_size)
-                            .enumerate()
-                            .map(move |(idx, slice)| (idx * chunk_size, slice))
-                            .map(|(offset, slice)| {
-                                let f = f.clone();
-                                scope.spawn(move || {
-                                    slice
-                                        .iter()
-                                        .enumerate()
-                                        .filter_map(move |(i, c)| (f(c)).then_some(offset + i))
-                                })
+        let indices = std::thread::scope(|scope| {
+            let chunk_size = num_cpus::get();
+            std::iter::once(0)
+                .chain(
+                    arr.chunks(chunk_size)
+                        .enumerate()
+                        .map(move |(idx, slice)| (idx * chunk_size, slice))
+                        .map(|(offset, slice)| {
+                            let f = f.clone();
+                            scope.spawn(move || {
+                                slice
+                                    .iter()
+                                    .enumerate()
+                                    .filter_map(move |(i, c)| (f(c)).then_some(offset + i))
                             })
-                            .flat_map(|hndl| hndl.join().unwrap()),
-                    )
-                    .chain([arr.len()])
-                    .collect_vec()
-            });
+                        })
+                        .flat_map(|hndl| hndl.join().unwrap()),
+                )
+                .chain([arr.len()])
+                .collect_vec()
+        });
 
-            CutIndices {
-                cuts: line_ends.into(),
-            }
+        CutIndices {
+            indices: indices.into(),
         }
     }
 
     pub fn slice(&self, rng: Range<usize>) -> Self {
         CutIndices {
-            cuts: self.cuts.slice(rng.start..rng.end + 1),
+            indices: self.indices.slice(rng.start..rng.end + 1),
         }
     }
 
     pub fn start(&self, idx: usize) -> Option<usize> {
-        if self.cuts.start() + idx == 0 {
-            self.cuts.get(idx).copied()
+        if self.indices.start() + idx == 0 {
+            self.indices.get(idx).copied()
         } else {
-            self.cuts.get(idx).map(|i| i + 1)
+            self.indices.get(idx).map(|i| i + 1)
         }
     }
 
     pub fn end(&self, idx: usize) -> Option<usize> {
-        self.cuts.get(idx + 1).copied()
+        self.indices.get(idx + 1).copied()
     }
 
     pub fn len(&self) -> usize {
-        self.cuts.len().saturating_sub(1)
+        self.indices.len().saturating_sub(1)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -132,8 +120,8 @@ mod tests {
         let empty: Vec<char> = vec![];
         let cut_indices = CutIndices::build(empty, is_newline);
 
-        assert_eq!(cut_indices.len(), 0);
-        assert!(cut_indices.is_empty());
+        assert_eq!(cut_indices.len(), 1);
+        assert!(!cut_indices.is_empty());
     }
 
     #[test]
@@ -236,8 +224,8 @@ mod tests {
         let empty: Vec<char> = vec![];
         let cut_indices = CutIndices::build_par(empty, is_newline);
 
-        assert_eq!(cut_indices.len(), 0);
-        assert!(cut_indices.is_empty());
+        assert_eq!(cut_indices.len(), 1);
+        assert!(!cut_indices.is_empty());
     }
 
     #[test]
@@ -353,7 +341,8 @@ mod tests {
         let empty: Vec<char> = vec![];
         let cut_indices = CutIndices::build(empty, is_newline);
 
-        assert_eq!(cut_indices.start(0), None);
+        assert_eq!(cut_indices.start(0), Some(0));
+        assert_eq!(cut_indices.end(0), Some(0));
     }
 
     #[test]
@@ -393,7 +382,7 @@ mod tests {
         let empty: Vec<char> = vec![];
         let cut_indices = CutIndices::build(empty, is_newline);
 
-        assert_eq!(cut_indices.end(0), None);
+        assert_eq!(cut_indices.end(0), Some(0));
     }
 
     #[test]
@@ -412,7 +401,7 @@ mod tests {
         let empty: Vec<char> = vec![];
         let cut_indices = CutIndices::build(empty, is_newline);
 
-        assert_eq!(cut_indices.len(), 0);
+        assert_eq!(cut_indices.len(), 1);
     }
 
     #[test]
@@ -441,13 +430,6 @@ mod tests {
     }
 
     // Tests for is_empty()
-    #[test]
-    fn test_is_empty_true() {
-        let empty: Vec<char> = vec![];
-        let cut_indices = CutIndices::build(empty, is_newline);
-
-        assert!(cut_indices.is_empty());
-    }
 
     #[test]
     fn test_is_empty_false() {

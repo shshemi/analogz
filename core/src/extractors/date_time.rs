@@ -1,6 +1,6 @@
 use crate::{
     containers::{ArcStr, DateTime},
-    misc::{round_robin::IntoRoundRobin, sliding_window::SlidingWindowExt},
+    misc::{ngrams::NGramsExt, round_robin::IntoRoundRobin, sliding_window::SlidingWindowExt},
 };
 
 #[derive(Debug, Clone)]
@@ -24,11 +24,15 @@ impl DateTimeExtractor {
     }
 
     pub fn extract(&self, text: ArcStr) -> Option<DateTime> {
-        (self.min_len..self.max_len)
-            .rev()
-            .map(|size| text.sliding_window(size))
-            .round_robin()
-            .find_map(|win| win.parse().ok())
+        // (self.min_len..self.max_len)
+        //     .rev()
+        //     .map(|size| text.sliding_window(size))
+        //     .round_robin()
+        text.ngrams(b" \"$'(),;<>@[]`{|}=").find_map(|win| {
+            let c = win.parse().ok();
+            println!("{win:?} -> {c:?}");
+            c
+        })
     }
 }
 
