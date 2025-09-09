@@ -39,25 +39,24 @@ pub const DATETIME_FORMATS: &[&str] = &[
     "%B %d, %Y %I:%M:%S %p",
     // d-
     "%d/%m/%Y %H:%M:%S",
-    "%d.%m.%Y %H:%M:%S",
     "%d %m %Y %H:%M:%S",
     "%d %b %Y %H:%M:%S",
-    "%d %b %Y %H:%M:%S",
-    "%d %B %Y %H:%M:%S",
     "%d %b %Y, %H:%M:%S",
-    "%d.%m.%Y %H.%M.%S",
-    "%d-%m-%Y %H:%M:%S",
     "%d-%b-%Y %H:%M:%S",
+    "%d %B %Y %H:%M:%S",
+    "%d.%m.%Y %H.%M.%S",
+    "%d.%m.%Y %H:%M:%S",
+    "%d-%m-%Y %H:%M:%S",
     "%d.%m.%Y, %H:%M:%S",
-    "%d/%m/%Y, %H:%M:%S",
     "%d_%m_%Y %H:%M:%S",
+    "%d/%m/%Y, %H:%M:%S",
     // m-
     "%m/%d/%Y %H:%M:%S",
     "%m/%d/%Y %I:%M:%S %p",
-    "%m-%d-%Y %H:%M:%S",
-    "%m-%d-%Y %I:%M:%S %p",
     "%m/%d/%Y %I:%M %p",
     "%m/%d/%Y, %H:%M:%S",
+    "%m-%d-%Y %H:%M:%S",
+    "%m-%d-%Y %I:%M:%S %p",
 ];
 
 #[derive(Debug, thiserror::Error)]
