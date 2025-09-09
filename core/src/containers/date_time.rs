@@ -84,10 +84,10 @@ impl FromStr for DateTime {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let naive_dt = DATETIME_FORMATS
             .iter()
-            .map(|fmt| chrono::NaiveDateTime::parse_from_str(s, fmt))
+            .map(|fmt| chrono::NaiveDateTime::parse_and_remainder(s, fmt))
             .find_map(|result| result.ok())
             .ok_or(DateTimeNotFound)?;
-        Ok(DateTime(naive_dt))
+        Ok(DateTime(naive_dt.0))
     }
 }
 

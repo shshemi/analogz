@@ -1,48 +1,32 @@
-use crate::{
-    containers::{ArcStr, DateTime},
-    misc::{ngrams::NGramsExt, round_robin::IntoRoundRobin, sliding_window::SlidingWindowExt},
-};
+use crate::containers::{ArcStr, DateTime};
 
-#[derive(Debug, Clone)]
-pub struct DateTimeExtractor {
-    min_len: usize,
-    max_len: usize,
-}
-
-impl Default for DateTimeExtractor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+#[derive(Debug, Clone, Default)]
+pub struct DateTimeExtractor;
 
 impl DateTimeExtractor {
-    pub fn new() -> Self {
-        Self {
-            min_len: 10,
-            max_len: 42,
-        }
-    }
-
     pub fn extract(&self, text: ArcStr) -> Option<DateTime> {
-        // (self.min_len..self.max_len)
-        //     .rev()
-        //     .map(|size| text.sliding_window(size))
-        //     .round_robin()
-        text.ngrams(b" \"$'(),;<>@[]`{|}=").find_map(|win| {
-            let c = win.parse().ok();
-            println!("{win:?} -> {c:?}");
-            c
-        })
+        text.char_indices()
+            .filter_map(|(i, c)| {
+                //
+                match i {
+                    0 => Some(0),
+                    _ if c.is_ascii() && b" \"$'(),;<>@[]`{|}=".contains(&(c as u8)) => Some(i),
+                    _ => None,
+                }
+            })
+            .map(|start| text.slice(start..))
+            .find_map(|win| win.parse().ok())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::default_constructed_unit_structs)]
     use super::*;
 
     #[test]
     fn test_extract_various_datetime_formats() {
-        let extractor = DateTimeExtractor::new();
+        let extractor = DateTimeExtractor::default();
 
         // ISO 8601 formats
         assert!(
@@ -231,38 +215,8 @@ mod tests {
     }
 
     #[test]
-    fn test_extractor_default() {
-        let extractor1 = DateTimeExtractor::new();
-        let extractor2 = DateTimeExtractor::default();
-
-        assert_eq!(extractor1.min_len, extractor2.min_len);
-        assert_eq!(extractor1.max_len, extractor2.max_len);
-    }
-
-    #[test]
-    fn test_various_timezones() {
-        let extractor = DateTimeExtractor::new();
-
-        let timezone_formats = vec![
-            "2023-12-25T15:30:45Z",
-            "2023-12-25T15:30:45+00:00",
-            "2023-12-25T15:30:45-05:00",
-            "2023-12-25T15:30:45+09:30",
-            "2023-12-25T15:30:45 UTC",
-            "2023-12-25T15:30:45 GMT",
-            "2023-12-25T15:30:45 EST",
-            "2023-12-25T15:30:45 PST",
-        ];
-
-        for format in timezone_formats {
-            let result = extractor.extract(format.into());
-            println!("Timezone format '{}': {:?}", format, result.is_some());
-        }
-    }
-
-    #[test]
     fn test_sliding_window_behavior() {
-        let extractor = DateTimeExtractor::new();
+        let extractor = DateTimeExtractor::default();
 
         // Test string where the date is not at the beginning
         let text_with_date = "The important date is 2023-12-25T15:30:45Z for the event";
