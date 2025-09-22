@@ -153,6 +153,27 @@ impl Buffer {
         }
     }
 
+    /// Selects specific lines from the log buffer based on the provided indices.
+    ///
+    /// # Arguments
+    ///
+    /// * `items` - An iterable of line indices to include in the new buffer
+    ///
+    /// # Returns
+    ///
+    /// A new `Buffer` containing only the selected lines
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use analogz::containers::Buffer;
+    ///
+    /// let logs = Buffer::new("line 1\nline 2\nline 3\nline 4".to_string());
+    /// let selected = logs.select([0, 2]);
+    /// assert_eq!(selected.len(), 2);
+    /// assert_eq!(selected.get(0).unwrap().as_str(), "line 1");
+    /// assert_eq!(selected.get(1).unwrap().as_str(), "line 3");
+    /// ```
     pub fn select(&self, items: impl IntoIterator<Item = usize>) -> Buffer {
         if let Some(s) = self.select.clone() {
             Self {
@@ -193,7 +214,31 @@ impl Buffer {
         }
     }
 
-    /// Map over all lines, preserving order and indices.
+    /// Applies a function to each line in the buffer, producing an `ArcSlice`.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A closure or function that takes a `Line` and returns a value of type `O`.
+    ///
+    /// # Returns
+    ///
+    /// An `ArcSlice<O>` containing the results of applying the function to each line.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use analogz::containers::Buffer;
+    ///
+    /// let logs = Buffer::new("line 1\nline 2\nline 3".to_string());
+    ///
+    /// // Map each line to its length
+    /// let lengths: Vec<usize> = logs.map(|line| line.as_str().len()).into();
+    /// assert_eq!(lengths, vec![6, 6, 6]);
+    ///
+    /// // Map each line to uppercase
+    /// let uppercased: Vec<String> = logs.map(|line| line.as_str().to_uppercase()).into();
+    /// assert_eq!(uppercased, vec!["LINE 1", "LINE 2", "LINE 3"]);
+    /// ```
     pub fn map<F, O>(&self, f: F) -> ArcSlice<O>
     where
         F: FnMut(Line) -> O,
@@ -201,7 +246,40 @@ impl Buffer {
         self.iter().map(f).collect_vec().into()
     }
 
-    /// Parallel map over all lines, preserving order and indices.
+    /// Applies a function to each line in the buffer in parallel, producing an `ArcSlice`.
+    ///
+    /// This method divides the buffer into chunks and processes each chunk in parallel
+    /// using multiple threads. The function `f` is applied to each line, and the results
+    /// are collected into an `ArcSlice`.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A closure or function that takes a `Line` and returns a value of type `O`.
+    ///
+    /// # Returns
+    ///
+    /// An `ArcSlice<O>` containing the results of applying the function to each line.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use analogz::containers::Buffer;
+    ///
+    /// let logs = Buffer::new("line 1\nline 2\nline 3".to_string());
+    ///
+    /// // Map each line to its length in parallel
+    /// let lengths: Vec<usize> = logs.par_map(|line| line.as_str().len()).into();
+    /// assert_eq!(lengths, vec![6, 6, 6]);
+    ///
+    /// // Map each line to uppercase in parallel
+    /// let uppercased: Vec<String> = logs.par_map(|line| line.as_str().to_uppercase()).into();
+    /// assert_eq!(uppercased, vec!["LINE 1", "LINE 2", "LINE 3"]);
+    /// ```
+    ///
+    /// # Notes
+    ///
+    /// The order of the results in the `ArcSlice` matches the order of the lines in the buffer.
+    /// This method is designed to leverage multiple CPU cores for improved performance on large buffers.
     pub fn par_map<F, O>(&self, f: F) -> ArcSlice<O>
     where
         O: Send,
