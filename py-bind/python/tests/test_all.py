@@ -1,3 +1,4 @@
+import pytest
 from analogz import Buffer, LineIter, ArcStr, Regex
 
 
@@ -20,6 +21,9 @@ def test_buffer_getitem():
 
     assert isinstance(buff[2], ArcStr)
     assert str(buff[2]) == "Line3"
+
+    with pytest.raises(IndexError):
+        buff[3]
 
 def test_buffer_iter():
     buff = Buffer("Line1\nLine2\nLine3")
@@ -154,3 +158,5 @@ def test_select():
     selected = buff.select([0, 2])
     assert isinstance(selected, Buffer), f"return type should be {type(buff)} but is {type(selected)}"
     assert [str(line) for line in selected] == ["Line1", "Line333"]
+    with pytest.raises(IndexError):
+        buff.select([3, 4])

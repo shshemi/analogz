@@ -5,6 +5,8 @@ use std::{
 
 use itertools::Itertools;
 
+use crate::containers::InvalidIndexError;
+
 #[derive(Debug, Clone)]
 pub struct ArcSlice<T> {
     slice: Arc<[T]>,
@@ -52,8 +54,6 @@ impl<T> ArcSlice<T> {
             std::ops::Bound::Unbounded => self.end,
         }
         .clamp(self.start, self.end);
-        // let start = (self.start + rng.start).min(self.end);
-        // let end = (self.start + rng.end).min(self.end);
 
         Self {
             slice: self.slice.clone(),
@@ -62,16 +62,16 @@ impl<T> ArcSlice<T> {
         }
     }
 
-    pub fn select(&self, items: impl IntoIterator<Item = usize>) -> Self
+    pub fn select(&self, items: impl IntoIterator<Item = usize>) -> Result<Self, InvalidIndexError>
     where
         T: Clone,
     {
-        ArcSlice::new(
+        Ok(ArcSlice::new(
             items
                 .into_iter()
-                .filter_map(|idx| self.get(idx).cloned())
-                .collect_vec(),
-        )
+                .map(|idx| self.get(idx).cloned().ok_or(InvalidIndexError(idx)))
+                .collect::<Result<Vec<_>, InvalidIndexError>>()?,
+        ))
     }
 
     pub fn len(&self) -> usize {

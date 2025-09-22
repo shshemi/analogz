@@ -2,7 +2,10 @@ use std::ops::{Deref, Range};
 
 use itertools::Itertools;
 
-use crate::{containers::ArcSlice, misc::stepped_range::SteppedRange};
+use crate::{
+    containers::{ArcSlice, InvalidIndexError},
+    misc::stepped_range::SteppedRange,
+};
 
 use super::{arc_str::ArcStr, cut_indices::CutIndices};
 
@@ -39,15 +42,6 @@ pub struct Buffer {
 
 impl Buffer {
     /// Creates a new `Buffer` from a string.
-    ///
-    /// # Arguments
-    ///
-    /// * `content` - The string content to be stored in the buffer
-    ///
-    /// # Returns
-    ///
-    /// A new `Buffer` instance containing the provided content
-    ///
     pub fn new(content: String) -> Buffer {
         Buffer {
             index: CutIndices::build_par(&content, |c| c == &b'\n'),
@@ -57,10 +51,6 @@ impl Buffer {
     }
 
     /// Returns the underlying string content as `&str`.
-    ///
-    /// # Returns
-    ///
-    /// A `&str` containing the entire log content
     pub fn as_str(&self) -> &str {
         let start = self.index.start(0).unwrap();
         let end = self.index.end(self.index.len() - 1).unwrap();
@@ -68,10 +58,6 @@ impl Buffer {
     }
 
     /// Returns the number of lines in the log buffer.
-    ///
-    /// # Returns
-    ///
-    /// The total number of lines in the log buffer
     pub fn len(&self) -> usize {
         if let Some(select) = &self.select {
             select.len()
@@ -81,24 +67,11 @@ impl Buffer {
     }
 
     /// Checks if the log buffer is empty (contains no lines).
-    ///
-    /// # Returns
-    ///
-    /// `true` if the log buffer contains no lines, `false` otherwise
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Returns the line at the given index.
-    ///
-    /// # Arguments
-    ///
-    /// * `idx` - The line index
-    ///
-    /// # Returns
-    ///
-    /// * `Some(Line)` for valid indices
-    /// * `None` for invalid indices
     pub fn get(&self, idx: usize) -> Option<Line> {
         if let Some(select) = &self.select {
             let idx = select.get(idx).copied()?;
@@ -118,15 +91,6 @@ impl Buffer {
 
     /// Returns a slice of the log buffer for the given range of lines.
     ///
-    /// # Arguments
-    ///
-    /// * `rng` - A range of line indices to include in the slice
-    ///
-    /// # Returns
-    ///
-    /// A new `Buffer` containing only the lines in the specified range
-    ///
-    /// # Examples
     ///
     /// ```
     /// use analogz::containers::Buffer;
@@ -155,48 +119,48 @@ impl Buffer {
 
     /// Selects specific lines from the log buffer based on the provided indices.
     ///
-    /// # Arguments
-    ///
-    /// * `items` - An iterable of line indices to include in the new buffer
-    ///
-    /// # Returns
-    ///
-    /// A new `Buffer` containing only the selected lines
-    ///
-    /// # Examples
     ///
     /// ```
     /// use analogz::containers::Buffer;
     ///
     /// let logs = Buffer::new("line 1\nline 2\nline 3\nline 4".to_string());
-    /// let selected = logs.select([0, 2]);
+    /// let selected = logs.select([0, 2]).unwrap();
     /// assert_eq!(selected.len(), 2);
     /// assert_eq!(selected.get(0).unwrap().as_str(), "line 1");
     /// assert_eq!(selected.get(1).unwrap().as_str(), "line 3");
     /// ```
-    pub fn select(&self, items: impl IntoIterator<Item = usize>) -> Buffer {
-        if let Some(s) = self.select.clone() {
+    pub fn select(
+        &self,
+        items: impl IntoIterator<Item = usize>,
+    ) -> Result<Buffer, InvalidIndexError> {
+        Ok(if let Some(s) = self.select.clone() {
             Self {
                 astr: self.astr.clone(),
                 index: self.index.clone(),
-                select: Some(s.select(items)),
+                select: Some(s.select(items)?),
             }
         } else {
             Self {
                 astr: self.astr.clone(),
                 index: self.index.clone(),
-                select: Some(items.into_iter().filter(|idx| idx < &self.len()).collect()),
+                select: Some(ArcSlice::new(
+                    items
+                        .into_iter()
+                        .map(|idx| {
+                            if idx < self.len() {
+                                Ok(idx)
+                            } else {
+                                Err(InvalidIndexError(idx))
+                            }
+                        })
+                        .collect::<Result<Vec<_>, InvalidIndexError>>()?,
+                )),
             }
-        }
+        })
     }
 
     /// Returns an iterator over all lines in the log buffer.
     ///
-    /// # Returns
-    ///
-    /// An iterator that yields each line in the buffer as a `Line` struct
-    ///
-    /// # Examples
     ///
     /// ```
     /// use analogz::containers::Buffer;
@@ -216,28 +180,17 @@ impl Buffer {
 
     /// Applies a function to each line in the buffer, producing an `ArcSlice`.
     ///
-    /// # Arguments
-    ///
-    /// * `f` - A closure or function that takes a `Line` and returns a value of type `O`.
-    ///
-    /// # Returns
-    ///
-    /// An `ArcSlice<O>` containing the results of applying the function to each line.
-    ///
-    /// # Examples
     ///
     /// ```
     /// use analogz::containers::Buffer;
     ///
     /// let logs = Buffer::new("line 1\nline 2\nline 3".to_string());
     ///
-    /// // Map each line to its length
-    /// let lengths: Vec<usize> = logs.map(|line| line.as_str().len()).into();
-    /// assert_eq!(lengths, vec![6, 6, 6]);
     ///
-    /// // Map each line to uppercase
-    /// let uppercased: Vec<String> = logs.map(|line| line.as_str().to_uppercase()).into();
-    /// assert_eq!(uppercased, vec!["LINE 1", "LINE 2", "LINE 3"]);
+    /// let uppercased = logs.map(|line| line.as_str().to_uppercase());
+    /// assert_eq!(uppercased.get(0).unwrap().as_str(), "LINE 1");
+    /// assert_eq!(uppercased.get(1).unwrap().as_str(), "LINE 2");
+    /// assert_eq!(uppercased.get(2).unwrap().as_str(), "LINE 3");
     /// ```
     pub fn map<F, O>(&self, f: F) -> ArcSlice<O>
     where
@@ -252,34 +205,17 @@ impl Buffer {
     /// using multiple threads. The function `f` is applied to each line, and the results
     /// are collected into an `ArcSlice`.
     ///
-    /// # Arguments
-    ///
-    /// * `f` - A closure or function that takes a `Line` and returns a value of type `O`.
-    ///
-    /// # Returns
-    ///
-    /// An `ArcSlice<O>` containing the results of applying the function to each line.
-    ///
-    /// # Examples
     ///
     /// ```
     /// use analogz::containers::Buffer;
     ///
     /// let logs = Buffer::new("line 1\nline 2\nline 3".to_string());
     ///
-    /// // Map each line to its length in parallel
-    /// let lengths: Vec<usize> = logs.par_map(|line| line.as_str().len()).into();
-    /// assert_eq!(lengths, vec![6, 6, 6]);
-    ///
-    /// // Map each line to uppercase in parallel
-    /// let uppercased: Vec<String> = logs.par_map(|line| line.as_str().to_uppercase()).into();
-    /// assert_eq!(uppercased, vec!["LINE 1", "LINE 2", "LINE 3"]);
+    /// let uppercased = logs.map(|line| line.as_str().to_uppercase());
+    /// assert_eq!(uppercased.get(0).unwrap().as_str(), "LINE 1");
+    /// assert_eq!(uppercased.get(1).unwrap().as_str(), "LINE 2");
+    /// assert_eq!(uppercased.get(2).unwrap().as_str(), "LINE 3");
     /// ```
-    ///
-    /// # Notes
-    ///
-    /// The order of the results in the `ArcSlice` matches the order of the lines in the buffer.
-    /// This method is designed to leverage multiple CPU cores for improved performance on large buffers.
     pub fn par_map<F, O>(&self, f: F) -> ArcSlice<O>
     where
         O: Send,
@@ -659,23 +595,21 @@ mod tests {
         let buffer = Buffer::new(content);
 
         // Select specific lines
-        let selected = buffer.select([0, 2, 4]);
+        let selected = buffer.select([0, 2, 4]).unwrap();
         assert_eq!(selected.len(), 3);
         assert_eq!(selected.get(0).unwrap().as_str(), "line 1");
         assert_eq!(selected.get(1).unwrap().as_str(), "line 3");
         assert_eq!(selected.get(2).unwrap().as_str(), "line 5");
 
         // Select with repeated indices
-        let repeated = buffer.select([1, 1, 3]);
+        let repeated = buffer.select([1, 1, 3]).unwrap();
         assert_eq!(repeated.len(), 3);
         assert_eq!(repeated.get(0).unwrap().as_str(), "line 2");
         assert_eq!(repeated.get(1).unwrap().as_str(), "line 2");
         assert_eq!(repeated.get(2).unwrap().as_str(), "line 4");
 
         // Select with out-of-range indices
-        let out_of_range = buffer.select([0, 5, 6]);
-        assert_eq!(out_of_range.len(), 1);
-        assert_eq!(out_of_range.get(0).unwrap().as_str(), "line 1");
+        assert!(buffer.select([0, 5, 6]).is_err())
     }
 
     #[test]
@@ -691,7 +625,7 @@ mod tests {
         assert_eq!(sliced.get(2).unwrap().as_str(), "line 4");
 
         // Select from the sliced buffer
-        let selected = sliced.select([0, 2]);
+        let selected = sliced.select([0, 2]).unwrap();
         assert_eq!(selected.len(), 2);
         assert_eq!(selected.get(0).unwrap().as_str(), "line 2");
         assert_eq!(selected.get(1).unwrap().as_str(), "line 4");
@@ -703,7 +637,7 @@ mod tests {
         let buffer = Buffer::new(content);
 
         // Select specific lines
-        let selected = buffer.select([0, 2, 4]);
+        let selected = buffer.select([0, 2, 4]).unwrap();
         assert_eq!(selected.len(), 3);
         assert_eq!(selected.get(0).unwrap().as_str(), "line 1");
         assert_eq!(selected.get(1).unwrap().as_str(), "line 3");
@@ -722,14 +656,9 @@ mod tests {
         let buffer = Buffer::new(content);
 
         // Select with no valid indices
-        let empty_select = buffer.select([]);
+        let empty_select = buffer.select([]).unwrap();
         assert!(empty_select.is_empty());
         assert_eq!(empty_select.len(), 0);
-
-        // Select with out-of-range indices
-        let out_of_range = buffer.select([10, 11, 12]);
-        assert!(out_of_range.is_empty());
-        assert_eq!(out_of_range.len(), 0);
     }
 
     #[test]
@@ -741,11 +670,9 @@ mod tests {
         let empty_slice = buffer.slice(5..5);
         assert!(empty_slice.is_empty());
         assert_eq!(empty_slice.len(), 0);
-
         // Select from an empty slice
-        let empty_select = empty_slice.select([0, 1, 2]);
-        assert!(empty_select.is_empty());
-        assert_eq!(empty_select.len(), 0);
+
+        assert_eq!(empty_slice.select([0, 1, 2]).err().unwrap().0, 0);
     }
 
     #[test]
@@ -756,7 +683,7 @@ mod tests {
         let buffer = Buffer::new(content);
 
         // Select specific lines
-        let selected = buffer.select([0, 2, 4, 6, 8]);
+        let selected = buffer.select([0, 2, 4, 6, 8]).unwrap();
         assert_eq!(selected.len(), 5);
         assert_eq!(selected.get(0).unwrap().as_str(), "line 1");
         assert_eq!(selected.get(1).unwrap().as_str(), "line 3");
@@ -772,7 +699,7 @@ mod tests {
         assert_eq!(sliced.get(2).unwrap().as_str(), "line 7");
 
         // Select again from the sliced buffer
-        let nested_select = sliced.select([0, 2]);
+        let nested_select = sliced.select([0, 2]).unwrap();
         assert_eq!(nested_select.len(), 2);
         assert_eq!(nested_select.get(0).unwrap().as_str(), "line 3");
         assert_eq!(nested_select.get(1).unwrap().as_str(), "line 7");

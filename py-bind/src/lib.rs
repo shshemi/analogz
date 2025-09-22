@@ -1,5 +1,4 @@
-use polars::frame::DataFrame;
-use pyo3::{prelude::*, types::PyIterator};
+use pyo3::{exceptions::PyIndexError, prelude::*};
 
 use analogz::containers::{ArcStr, Buffer, LineIter, Regex};
 
@@ -15,7 +14,6 @@ fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pyclass]
 pub struct PyBuffer {
     buffer: Buffer,
-    features: DataFrame,
 }
 
 #[pymethods]
@@ -24,7 +22,6 @@ impl PyBuffer {
     pub fn new(content: String) -> Self {
         PyBuffer {
             buffer: Buffer::new(content),
-            features: DataFrame::empty(),
         }
     }
 
@@ -41,7 +38,6 @@ impl PyBuffer {
         let end = end.unwrap_or(self.len());
         PyBuffer {
             buffer: self.buffer.slice(start..end),
-            features: self.features.slice(start as i64, end - start),
         }
     }
 
@@ -70,11 +66,13 @@ impl PyBuffer {
         .to_vec()
     }
 
-    pub fn select(&self, items: Vec<usize>) -> Self {
-        PyBuffer {
-            buffer: self.buffer.select(items),
-            features: self.features.clone(),
-        }
+    pub fn select(&self, items: Vec<usize>) -> PyResult<Self> {
+        Ok(PyBuffer {
+            buffer: self
+                .buffer
+                .select(items)
+                .map_err(|err| PyIndexError::new_err(err.0))?,
+        })
     }
 }
 
