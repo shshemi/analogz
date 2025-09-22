@@ -1,5 +1,5 @@
 use polars::frame::DataFrame;
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyIterator};
 
 use analogz::containers::{ArcStr, Buffer, LineIter, Regex};
 
@@ -68,6 +68,13 @@ impl PyBuffer {
             })
         })
         .to_vec()
+    }
+
+    pub fn select(&self, items: Vec<usize>) -> Self {
+        PyBuffer {
+            buffer: self.buffer.select(items),
+            features: self.features.clone(),
+        }
     }
 }
 

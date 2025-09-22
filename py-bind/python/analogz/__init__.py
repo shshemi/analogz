@@ -101,6 +101,11 @@ class Buffer:
     def map(self, cb: Callable[[ArcStr], MapOut]) -> List[MapOut]:
         return self.__buffer.map(lambda x: cb(ArcStr(x)))
 
+    def select(self, items: List[int]) -> "Buffer":
+        buf = Buffer.__new__(Buffer)
+        buf.__buffer = self.__buffer.select(items)
+        return buf
+
 class Regex:
     __slots__ = ["__regex"]
 

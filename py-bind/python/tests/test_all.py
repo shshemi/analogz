@@ -147,3 +147,10 @@ def test_map():
     assert lc[0] == 5
     assert lc[1] == 6
     assert lc[2] == 7
+
+
+def test_select():
+    buff = Buffer("Line1\nLine22\nLine333")
+    selected = buff.select([0, 2])
+    assert isinstance(selected, Buffer), f"return type should be {type(buff)} but is {type(selected)}"
+    assert [str(line) for line in selected] == ["Line1", "Line333"]
