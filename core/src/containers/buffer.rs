@@ -34,6 +34,7 @@ use super::{arc_str::ArcStr, cut_indices::CutIndices};
 pub struct Buffer {
     astr: ArcStr,
     index: CutIndices,
+    select: Option<ArcSlice<usize>>,
 }
 
 impl Buffer {
@@ -51,6 +52,7 @@ impl Buffer {
         Buffer {
             index: CutIndices::build_par(&content, |c| c == &b'\n'),
             astr: ArcStr::from(content),
+            select: None,
         }
     }
 
@@ -71,7 +73,11 @@ impl Buffer {
     ///
     /// The total number of lines in the log buffer
     pub fn len(&self) -> usize {
-        self.index.len()
+        if let Some(select) = &self.select {
+            select.len()
+        } else {
+            self.index.len()
+        }
     }
 
     /// Checks if the log buffer is empty (contains no lines).
@@ -94,11 +100,20 @@ impl Buffer {
     /// * `Some(Line)` for valid indices
     /// * `None` for invalid indices
     pub fn get(&self, idx: usize) -> Option<Line> {
-        let start = self.index.start(idx)?;
-        let end = self.index.end(idx)?;
-        Some(Line {
-            astr: self.astr.slice(start..end),
-        })
+        if let Some(select) = &self.select {
+            let idx = select.get(idx).copied()?;
+            let start = self.index.start(idx)?;
+            let end = self.index.end(idx)?;
+            Some(Line {
+                astr: self.astr.slice(start..end),
+            })
+        } else {
+            let start = self.index.start(idx)?;
+            let end = self.index.end(idx)?;
+            Some(Line {
+                astr: self.astr.slice(start..end),
+            })
+        }
     }
 
     /// Returns a slice of the log buffer for the given range of lines.
@@ -123,9 +138,34 @@ impl Buffer {
     /// assert_eq!(middle_lines.get(1).unwrap().as_str(), "line 3");
     /// ```
     pub fn slice(&self, rng: Range<usize>) -> Buffer {
-        Self {
-            astr: self.astr.clone(),
-            index: self.index.slice(rng.start..rng.end),
+        if let Some(select) = self.select.clone() {
+            Self {
+                astr: self.astr.clone(),
+                index: self.index.clone(),
+                select: Some(select.slice(rng)),
+            }
+        } else {
+            Self {
+                astr: self.astr.clone(),
+                index: self.index.slice(rng.start..rng.end),
+                select: None,
+            }
+        }
+    }
+
+    pub fn select(&self, items: impl IntoIterator<Item = usize>) -> Buffer {
+        if let Some(s) = self.select.clone() {
+            Self {
+                astr: self.astr.clone(),
+                index: self.index.clone(),
+                select: Some(s.select(items)),
+            }
+        } else {
+            Self {
+                astr: self.astr.clone(),
+                index: self.index.clone(),
+                select: Some(items.into_iter().filter(|idx| idx < &self.len()).collect()),
+            }
         }
     }
 
@@ -533,5 +573,130 @@ mod tests {
         assert_eq!(slice[n / 2], Some(format!("L{}", n / 2).len()));
         assert_eq!(slice[n - 1], Some(format!("L{}", n - 1).len()));
         assert_eq!(slice[n], Some(0));
+    }
+
+    #[test]
+    fn test_select() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+
+        // Select specific lines
+        let selected = buffer.select([0, 2, 4]);
+        assert_eq!(selected.len(), 3);
+        assert_eq!(selected.get(0).unwrap().as_str(), "line 1");
+        assert_eq!(selected.get(1).unwrap().as_str(), "line 3");
+        assert_eq!(selected.get(2).unwrap().as_str(), "line 5");
+
+        // Select with repeated indices
+        let repeated = buffer.select([1, 1, 3]);
+        assert_eq!(repeated.len(), 3);
+        assert_eq!(repeated.get(0).unwrap().as_str(), "line 2");
+        assert_eq!(repeated.get(1).unwrap().as_str(), "line 2");
+        assert_eq!(repeated.get(2).unwrap().as_str(), "line 4");
+
+        // Select with out-of-range indices
+        let out_of_range = buffer.select([0, 5, 6]);
+        assert_eq!(out_of_range.len(), 1);
+        assert_eq!(out_of_range.get(0).unwrap().as_str(), "line 1");
+    }
+
+    #[test]
+    fn test_slice_then_select() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+
+        // Slice the buffer
+        let sliced = buffer.slice(1..4);
+        assert_eq!(sliced.len(), 3);
+        assert_eq!(sliced.get(0).unwrap().as_str(), "line 2");
+        assert_eq!(sliced.get(1).unwrap().as_str(), "line 3");
+        assert_eq!(sliced.get(2).unwrap().as_str(), "line 4");
+
+        // Select from the sliced buffer
+        let selected = sliced.select([0, 2]);
+        assert_eq!(selected.len(), 2);
+        assert_eq!(selected.get(0).unwrap().as_str(), "line 2");
+        assert_eq!(selected.get(1).unwrap().as_str(), "line 4");
+    }
+
+    #[test]
+    fn test_select_then_slice() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+
+        // Select specific lines
+        let selected = buffer.select([0, 2, 4]);
+        assert_eq!(selected.len(), 3);
+        assert_eq!(selected.get(0).unwrap().as_str(), "line 1");
+        assert_eq!(selected.get(1).unwrap().as_str(), "line 3");
+        assert_eq!(selected.get(2).unwrap().as_str(), "line 5");
+
+        // Slice the selected buffer
+        let sliced = selected.slice(1..3);
+        assert_eq!(sliced.len(), 2);
+        assert_eq!(sliced.get(0).unwrap().as_str(), "line 3");
+        assert_eq!(sliced.get(1).unwrap().as_str(), "line 5");
+    }
+
+    #[test]
+    fn test_select_with_empty_result() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+
+        // Select with no valid indices
+        let empty_select = buffer.select([]);
+        assert!(empty_select.is_empty());
+        assert_eq!(empty_select.len(), 0);
+
+        // Select with out-of-range indices
+        let out_of_range = buffer.select([10, 11, 12]);
+        assert!(out_of_range.is_empty());
+        assert_eq!(out_of_range.len(), 0);
+    }
+
+    #[test]
+    fn test_slice_and_select_with_empty_result() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+
+        // Slice with no valid range
+        let empty_slice = buffer.slice(5..5);
+        assert!(empty_slice.is_empty());
+        assert_eq!(empty_slice.len(), 0);
+
+        // Select from an empty slice
+        let empty_select = empty_slice.select([0, 1, 2]);
+        assert!(empty_select.is_empty());
+        assert_eq!(empty_select.len(), 0);
+    }
+
+    #[test]
+    fn test_nested_select_and_slice() {
+        let content =
+            "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10"
+                .to_string();
+        let buffer = Buffer::new(content);
+
+        // Select specific lines
+        let selected = buffer.select([0, 2, 4, 6, 8]);
+        assert_eq!(selected.len(), 5);
+        assert_eq!(selected.get(0).unwrap().as_str(), "line 1");
+        assert_eq!(selected.get(1).unwrap().as_str(), "line 3");
+        assert_eq!(selected.get(2).unwrap().as_str(), "line 5");
+        assert_eq!(selected.get(3).unwrap().as_str(), "line 7");
+        assert_eq!(selected.get(4).unwrap().as_str(), "line 9");
+
+        // Slice the selected buffer
+        let sliced = selected.slice(1..4);
+        assert_eq!(sliced.len(), 3);
+        assert_eq!(sliced.get(0).unwrap().as_str(), "line 3");
+        assert_eq!(sliced.get(1).unwrap().as_str(), "line 5");
+        assert_eq!(sliced.get(2).unwrap().as_str(), "line 7");
+
+        // Select again from the sliced buffer
+        let nested_select = sliced.select([0, 2]);
+        assert_eq!(nested_select.len(), 2);
+        assert_eq!(nested_select.get(0).unwrap().as_str(), "line 3");
+        assert_eq!(nested_select.get(1).unwrap().as_str(), "line 7");
     }
 }

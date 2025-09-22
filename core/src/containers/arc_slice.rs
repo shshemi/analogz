@@ -3,6 +3,8 @@ use std::{
     sync::Arc,
 };
 
+use itertools::Itertools;
+
 #[derive(Debug, Clone)]
 pub struct ArcSlice<T> {
     slice: Arc<[T]>,
@@ -60,6 +62,18 @@ impl<T> ArcSlice<T> {
         }
     }
 
+    pub fn select(&self, items: impl IntoIterator<Item = usize>) -> Self
+    where
+        T: Clone,
+    {
+        ArcSlice::new(
+            items
+                .into_iter()
+                .filter_map(|idx| self.get(idx).cloned())
+                .collect_vec(),
+        )
+    }
+
     pub fn len(&self) -> usize {
         self.end - self.start
     }
@@ -79,6 +93,12 @@ where
 {
     fn from(value: C) -> Self {
         Self::new(value)
+    }
+}
+
+impl<T> FromIterator<T> for ArcSlice<T> {
+    fn from_iter<Iter: IntoIterator<Item = T>>(iter: Iter) -> Self {
+        ArcSlice::new(iter.into_iter().collect_vec())
     }
 }
 
