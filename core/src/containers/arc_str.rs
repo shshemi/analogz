@@ -1,6 +1,6 @@
 use crate::containers::traits::Find;
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     ops::{Deref, RangeBounds},
     sync::Arc,
 };
@@ -15,6 +15,12 @@ pub struct ArcStr {
 impl Debug for ArcStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ArcStr({:?})", self.as_str())
+    }
+}
+
+impl Display for ArcStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self, f)
     }
 }
 
