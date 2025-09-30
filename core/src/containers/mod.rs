@@ -5,6 +5,7 @@ mod cut_indices;
 mod date_time;
 mod errors;
 mod ip_addr;
+mod range_index;
 mod regex;
 mod socket_addr;
 mod traits;
