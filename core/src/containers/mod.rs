@@ -1,7 +1,7 @@
 mod arc_slice;
 mod arc_str;
 mod buffer;
-mod cut_indices;
+mod cut_index;
 mod date_time;
 mod errors;
 mod ip_addr;
@@ -13,7 +13,7 @@ mod traits;
 pub use arc_slice::ArcSlice;
 pub use arc_str::ArcStr;
 pub use buffer::{Buffer, LineIter};
-pub use cut_indices::CutIndices;
+pub use cut_index::CutIndex;
 pub use date_time::DateTime;
 pub use errors::InvalidIndexError;
 pub use ip_addr::IpAddr;

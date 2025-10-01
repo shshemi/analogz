@@ -7,7 +7,7 @@ use crate::{
     misc::stepped_range::SteppedRange,
 };
 
-use super::{arc_str::ArcStr, cut_indices::CutIndices};
+use super::{arc_str::ArcStr, cut_index::CutIndex};
 
 /// A cheap-to-clone container for storage and retrieval of log lines.
 ///
@@ -36,7 +36,7 @@ use super::{arc_str::ArcStr, cut_indices::CutIndices};
 #[derive(Debug, Clone)]
 pub struct Buffer {
     astr: ArcStr,
-    index: CutIndices,
+    index: CutIndex,
     select: Option<ArcSlice<usize>>,
 }
 
@@ -44,7 +44,7 @@ impl Buffer {
     /// Creates a new `Buffer` from a string.
     pub fn new(content: String) -> Buffer {
         Buffer {
-            index: CutIndices::build_par(&content, |c| c == &b'\n'),
+            index: CutIndex::build_par(&content, |c| c == &b'\n'),
             astr: ArcStr::from(content),
             select: None,
         }

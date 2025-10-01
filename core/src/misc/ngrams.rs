@@ -1,8 +1,8 @@
-use crate::containers::{ArcStr, CutIndices};
+use crate::containers::{ArcStr, CutIndex};
 
 pub struct NGrams {
     astr: ArcStr,
-    cuts: CutIndices,
+    cuts: CutIndex,
     i: usize,
     j: usize,
 }
@@ -32,7 +32,7 @@ impl NGramsExt for ArcStr {
         let split_chars = split_chars.to_owned();
         NGrams {
             astr: self.clone(),
-            cuts: CutIndices::build(self.as_bytes(), move |c| split_chars.contains(c)),
+            cuts: CutIndex::build(self.as_bytes(), move |c| split_chars.contains(c)),
             i: 0,
             j: 0,
         }
