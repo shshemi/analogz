@@ -3,8 +3,6 @@ use std::{
     sync::Arc,
 };
 
-use itertools::Itertools;
-
 use crate::containers::InvalidIndexError;
 
 #[derive(Debug, Clone)]
@@ -93,12 +91,6 @@ where
 {
     fn from(value: C) -> Self {
         Self::new(value)
-    }
-}
-
-impl<T> FromIterator<T> for ArcSlice<T> {
-    fn from_iter<Iter: IntoIterator<Item = T>>(iter: Iter) -> Self {
-        ArcSlice::new(iter.into_iter().collect_vec())
     }
 }
 
