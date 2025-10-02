@@ -1,40 +1,58 @@
-use crate::containers::{ArcStr, CutIndex};
+use crate::{
+    containers::ArcStr,
+    misc::split::{Split, SplitChars, SplitExt},
+};
 
-pub struct NGrams {
-    astr: ArcStr,
-    cuts: CutIndex,
+pub struct NGrams<S> {
+    split_iter: Split<S>,
+    tokens: Vec<ArcStr>,
     i: usize,
     j: usize,
 }
 
-impl Iterator for NGrams {
+impl<S> Iterator for NGrams<S>
+where
+    S: SplitChars,
+{
     type Item = ArcStr;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let start = self.cuts.start(self.i)?;
-        let end = self.cuts.end(self.j)?;
-        if self.j < self.cuts.len() - 1 {
-            self.j += 1;
+        if let Some(next) = self.split_iter.next() {
+            self.tokens.push(next);
+            let start = self.tokens.first()?;
+            let end = self.tokens.last()?;
+            start.merge_span(end)
         } else {
-            self.i += 1;
-            self.j = self.i;
+            let start = self.tokens.get(self.i)?;
+            let end = self.tokens.get(self.j)?;
+            if self.j < self.tokens.len() - 1 {
+                self.j += 1;
+            } else if self.i < self.tokens.len() - 1 {
+                self.i += 1;
+                self.j = self.i;
+            } else {
+                self.i = usize::MAX;
+                self.j = usize::MAX;
+            }
+            start.merge_span(end)
         }
-        Some(self.astr.slice(start..end))
     }
 }
 
-pub trait NGramsExt {
-    fn ngrams(&self, split_chars: &[u8]) -> NGrams;
+pub trait NGramsExt<S> {
+    fn ngrams(&self, split_chars: S) -> NGrams<S>;
 }
 
-impl NGramsExt for ArcStr {
-    fn ngrams(&self, split_chars: &[u8]) -> NGrams {
-        let split_chars = split_chars.to_owned();
+impl<S> NGramsExt<S> for ArcStr
+where
+    S: SplitChars,
+{
+    fn ngrams(&self, split_chars: S) -> NGrams<S> {
         NGrams {
-            astr: self.clone(),
-            cuts: CutIndex::build(self.as_bytes(), move |c| split_chars.contains(c)),
-            i: 0,
-            j: 0,
+            split_iter: self.split(split_chars),
+            tokens: Vec::new(),
+            i: 1,
+            j: 1,
         }
     }
 }
@@ -47,7 +65,7 @@ mod tests {
     // Helper function to collect all ngrams into a vector of strings for easier testing
     fn collect_ngrams(text: &str, split_chars: &str) -> Vec<String> {
         ArcStr::from(text)
-            .ngrams(split_chars.as_bytes())
+            .ngrams(split_chars)
             .map(|s| s.to_string())
             .collect()
     }
@@ -227,14 +245,14 @@ mod tests {
     #[test]
     fn test_iterator_can_be_collected_multiple_times() {
         let astr = ArcStr::from("hello world test");
-        let ngrams1: Vec<String> = astr.ngrams(b" ").map(|s| s.to_string()).collect();
-        let ngrams2: Vec<String> = astr.ngrams(b" ").map(|s| s.to_string()).collect();
+        let ngrams1: Vec<String> = astr.ngrams(" ").map(|s| s.to_string()).collect();
+        let ngrams2: Vec<String> = astr.ngrams(" ").map(|s| s.to_string()).collect();
         assert_eq!(ngrams1, ngrams2);
     }
 
     #[test]
     fn test_iterator_next_returns_none_when_exhausted() {
-        let mut ngrams = ArcStr::from("hello world").ngrams(b" ");
+        let mut ngrams = ArcStr::from("hello world").ngrams(" ");
 
         // Consume all items
         let items: Vec<_> = ngrams.by_ref().collect();
@@ -247,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_iterator_with_single_element() {
-        let mut ngrams = ArcStr::from("hello").ngrams(b" ");
+        let mut ngrams = ArcStr::from("hello").ngrams(" ");
         assert_eq!(
             ngrams.next().map(|s| s.to_string()),
             Some("hello".to_string())
@@ -257,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_iterator_empty_case() {
-        let mut ngrams = ArcStr::from("").ngrams(b" ");
+        let mut ngrams = ArcStr::from("").ngrams(" ");
         assert_eq!(ngrams.next().unwrap().as_ref(), "");
     }
 

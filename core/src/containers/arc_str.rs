@@ -20,7 +20,7 @@ impl Debug for ArcStr {
 
 impl Display for ArcStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self, f)
+        Display::fmt(self.as_ref(), f)
     }
 }
 
@@ -100,6 +100,18 @@ impl ArcStr {
             self.slice(idx1..idx2),
             self.slice(idx2..),
         )
+    }
+
+    pub fn merge_span(&self, other: &Self) -> Option<Self> {
+        if Arc::ptr_eq(&self.astr, &other.astr) {
+            Some(Self {
+                astr: self.astr.clone(),
+                start: self.start.min(other.start),
+                end: self.end.max(other.end),
+            })
+        } else {
+            None
+        }
     }
 
     pub fn find<F: Find>(&self, f: F) -> Option<Self> {
