@@ -80,6 +80,10 @@ impl CutIndex {
         self.indices.get(idx + 1).copied()
     }
 
+    pub fn range(&self, idx: usize) -> Option<Range<usize>> {
+        Some(self.start(idx)?..self.end(idx)?)
+    }
+
     pub fn len(&self) -> usize {
         self.indices.len().saturating_sub(1)
     }

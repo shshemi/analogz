@@ -81,10 +81,8 @@ impl Buffer {
                 astr: self.astr.slice(start..end),
             })
         } else {
-            let start = self.index.start(idx)?;
-            let end = self.index.end(idx)?;
             Some(Line {
-                astr: self.astr.slice(start..end),
+                astr: self.astr.slice(self.index.range(idx)?),
             })
         }
     }
