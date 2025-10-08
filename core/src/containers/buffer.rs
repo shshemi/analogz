@@ -169,10 +169,11 @@ impl Buffer {
     ///     println!("{}", line.as_str());
     /// }
     /// ```
-    pub fn iter(&self) -> LineIter {
-        LineIter {
+    pub fn iter(&self) -> Lines {
+        Lines {
+            start: 0,
+            end: self.len(),
             buffer: self.clone(),
-            idx: 0,
         }
     }
 
@@ -238,29 +239,53 @@ impl Buffer {
 ///
 /// Created by the `Buffer::iter()` or `Buffer::iter_from()` methods.
 #[derive(Debug)]
-pub struct LineIter {
+pub struct Lines {
     buffer: Buffer,
-    idx: usize,
+    start: usize,
+    end: usize,
 }
 
-impl Iterator for LineIter {
+impl Iterator for Lines {
     type Item = Line;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.buffer.get(self.idx).inspect(|_| {
-            self.idx += 1;
-        })
+        if self.start < self.end {
+            let next = self.buffer.get(self.start)?;
+            self.start += 1;
+            Some(next)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let l = self.end.saturating_sub(self.start);
+        (l, Some(l))
     }
 }
 
+impl DoubleEndedIterator for Lines {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.start < self.end {
+            self.end -= 1;
+            self.buffer.get(self.end)
+        } else {
+            None
+        }
+    }
+}
+
+impl ExactSizeIterator for Lines {}
+
 impl IntoIterator for Buffer {
     type Item = Line;
-    type IntoIter = LineIter;
+    type IntoIter = Lines;
 
     fn into_iter(self) -> Self::IntoIter {
-        LineIter {
+        Lines {
+            start: 0,
+            end: self.len(),
             buffer: self,
-            idx: 0,
         }
     }
 }
@@ -701,5 +726,273 @@ mod tests {
         assert_eq!(nested_select.len(), 2);
         assert_eq!(nested_select.get(0).unwrap().as_str(), "line 3");
         assert_eq!(nested_select.get(1).unwrap().as_str(), "line 7");
+    }
+
+    #[test]
+    fn test_line_iter_next_back() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+
+        let mut iter = buffer.iter();
+
+        // Test next_back from the end
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 5");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 4");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 3");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 2");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 1");
+        assert!(iter.next_back().is_none());
+
+        // Should be exhausted
+        assert!(iter.next_back().is_none());
+    }
+
+    #[test]
+    fn test_line_iter_mixed_next_and_next_back() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+
+        let mut iter = buffer.iter();
+
+        // Mix forward and backward iteration
+        assert_eq!(iter.next().unwrap().as_str(), "line 1");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 5");
+        assert_eq!(iter.next().unwrap().as_str(), "line 2");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 4");
+        assert_eq!(iter.next().unwrap().as_str(), "line 3");
+        assert!(iter.next_back().is_none());
+
+        // Should be exhausted
+        assert!(iter.next().is_none());
+        assert!(iter.next_back().is_none());
+    }
+
+    #[test]
+    fn test_line_iter_next_back_empty_buffer() {
+        let buffer = Buffer::new(String::new());
+        let mut iter = buffer.iter();
+        assert_eq!(iter.next_back().unwrap().as_str(), "");
+        assert!(iter.next_back().is_none());
+    }
+
+    #[test]
+    fn test_line_iter_next_back_single_line() {
+        let content = "single line".to_string();
+        let buffer = Buffer::new(content);
+        let mut iter = buffer.iter();
+
+        assert_eq!(iter.next_back().unwrap().as_str(), "single line");
+        assert!(iter.next_back().is_none());
+    }
+
+    #[test]
+    fn test_line_iter_next_back_with_slice() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let sliced = buffer.slice(1..4);
+
+        let mut iter = sliced.iter();
+
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 4");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 3");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 2");
+        assert!(iter.next_back().is_none());
+    }
+
+    #[test]
+    fn test_line_iter_next_back_with_select() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let selected = buffer.select([0, 2, 4]).unwrap();
+
+        let mut iter = selected.iter();
+
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 5");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 3");
+        assert_eq!(iter.next_back().unwrap().as_str(), "line 1");
+        assert!(iter.next_back().is_none());
+    }
+
+    #[test]
+    fn test_line_iter_next_back_meets_next() {
+        let content = "a\nb\nc".to_string();
+        let buffer = Buffer::new(content);
+        let mut iter = buffer.iter();
+
+        assert_eq!(iter.next().unwrap().as_str(), "a");
+        assert_eq!(iter.next_back().unwrap().as_str(), "c");
+        assert_eq!(iter.next().unwrap().as_str(), "b");
+        assert!(iter.next().is_none());
+        assert!(iter.next_back().is_none());
+    }
+
+    #[test]
+    fn test_line_iter_size_hint() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let iter = buffer.iter();
+
+        assert_eq!(iter.size_hint(), (5, Some(5)));
+    }
+
+    #[test]
+    fn test_line_iter_size_hint_empty() {
+        let buffer = Buffer::new(String::new());
+        let iter = buffer.iter();
+
+        assert_eq!(buffer.len(), 1);
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+    }
+
+    #[test]
+    fn test_line_iter_size_hint_single_line() {
+        let content = "single line".to_string();
+        let buffer = Buffer::new(content);
+        let iter = buffer.iter();
+
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+    }
+
+    #[test]
+    fn test_line_iter_size_hint_with_slice() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let sliced = buffer.slice(1..4);
+        let iter = sliced.iter();
+
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+    }
+
+    #[test]
+    fn test_line_iter_size_hint_with_select() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let selected = buffer.select([0, 2, 4]).unwrap();
+        let iter = selected.iter();
+
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+    }
+
+    #[test]
+    fn test_line_iter_size_hint_after_iteration() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let mut iter = buffer.iter();
+
+        // Initial size hint
+        assert_eq!(iter.size_hint(), (5, Some(5)));
+
+        // After consuming one item from front
+        iter.next();
+        assert_eq!(iter.size_hint(), (4, Some(4)));
+
+        // After consuming one item from back
+        iter.next_back();
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+
+        // After consuming another from front
+        iter.next();
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+
+        // After consuming another from back
+        iter.next_back();
+        assert_eq!(iter.size_hint(), (1, Some(1)));
+
+        // After consuming the last item
+        iter.next();
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn test_line_iter_len() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let iter = buffer.iter();
+
+        assert_eq!(iter.len(), 5);
+    }
+
+    #[test]
+    fn test_line_iter_len_empty() {
+        let buffer = Buffer::new(String::new());
+        let iter = buffer.iter();
+
+        assert_eq!(iter.len(), 1);
+    }
+
+    #[test]
+    fn test_line_iter_len_with_slice() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let sliced = buffer.slice(1..4);
+        let iter = sliced.iter();
+
+        assert_eq!(iter.len(), 3);
+    }
+
+    #[test]
+    fn test_line_iter_len_with_select() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let selected = buffer.select([0, 2, 4]).unwrap();
+        let iter = selected.iter();
+
+        assert_eq!(iter.len(), 3);
+    }
+
+    #[test]
+    fn test_line_iter_len_after_iteration() {
+        let content = "line 1\nline 2\nline 3\nline 4\nline 5".to_string();
+        let buffer = Buffer::new(content);
+        let mut iter = buffer.iter();
+
+        // Initial length
+        assert_eq!(iter.len(), 5);
+
+        // After consuming one item from front
+        iter.next();
+        assert_eq!(iter.len(), 4);
+
+        // After consuming one item from back
+        iter.next_back();
+        assert_eq!(iter.len(), 3);
+
+        // After consuming another from front
+        iter.next();
+        assert_eq!(iter.len(), 2);
+
+        // After consuming another from back
+        iter.next_back();
+        assert_eq!(iter.len(), 1);
+
+        // After consuming the last item
+        iter.next();
+        assert_eq!(iter.len(), 0);
+    }
+
+    #[test]
+    fn test_line_iter_size_hint_matches_len() {
+        let content = "a\nb\nc\nd\ne\nf\ng\nh\ni\nj".to_string();
+        let buffer = Buffer::new(content);
+        let mut iter = buffer.iter();
+
+        // Throughout iteration, size_hint should match len
+        while iter.len() > 0 {
+            let len = iter.len();
+            let (lower, upper) = iter.size_hint();
+            assert_eq!(lower, len);
+            assert_eq!(upper, Some(len));
+
+            // Randomly consume from front or back
+            if len.is_multiple_of(2) {
+                iter.next();
+            } else {
+                iter.next_back();
+            }
+        }
+
+        // Final check when empty
+        assert_eq!(iter.len(), 0);
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 }

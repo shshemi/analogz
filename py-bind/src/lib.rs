@@ -1,6 +1,6 @@
 use pyo3::{exceptions::PyIndexError, prelude::*};
 
-use analogz::containers::{ArcStr, Buffer, LineIter, Regex};
+use analogz::containers::{ArcStr, Buffer, Lines, Regex};
 
 #[pymodule]
 fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -77,7 +77,7 @@ impl PyBuffer {
 }
 
 #[pyclass]
-pub struct PyLineIter(LineIter);
+pub struct PyLineIter(Lines);
 
 #[pymethods]
 impl PyLineIter {

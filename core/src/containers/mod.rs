@@ -12,7 +12,7 @@ mod traits;
 
 pub use arc_slice::ArcSlice;
 pub use arc_str::ArcStr;
-pub use buffer::{Buffer, LineIter};
+pub use buffer::{Buffer, Lines};
 pub use cut_index::CutIndex;
 pub use date_time::DateTime;
 pub use errors::InvalidIndexError;
