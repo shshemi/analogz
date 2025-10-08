@@ -259,7 +259,7 @@ impl Iterator for Lines {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let l = self.end.saturating_sub(self.start);
+        let l = self.len();
         (l, Some(l))
     }
 }
@@ -275,7 +275,11 @@ impl DoubleEndedIterator for Lines {
     }
 }
 
-impl ExactSizeIterator for Lines {}
+impl ExactSizeIterator for Lines {
+    fn len(&self) -> usize {
+        self.end.saturating_sub(self.start)
+    }
+}
 
 impl IntoIterator for Buffer {
     type Item = Line;
