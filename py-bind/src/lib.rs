@@ -1,6 +1,6 @@
 use pyo3::{exceptions::PyIndexError, prelude::*};
 
-use analogz::containers::{ArcStr, Buffer, Lines, Regex};
+use analogz::containers::{ArcStr, Buffer, DateTime, Lines, Regex};
 
 #[pymodule]
 fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -8,6 +8,7 @@ fn _lib_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyLineIter>()?;
     m.add_class::<PyArcStr>()?;
     m.add_class::<PyRegex>()?;
+    m.add_class::<PyDateTime>()?;
     Ok(())
 }
 
@@ -189,5 +190,29 @@ impl PyRegex {
 impl PyRegex {
     pub fn into_inner(self) -> Regex {
         self.0
+    }
+}
+
+#[pyclass]
+#[derive(Debug, Clone)]
+pub struct PyDateTime(DateTime);
+
+#[pymethods]
+impl PyDateTime {
+    #[new]
+    pub fn new(s: String, format: Option<String>) -> PyResult<Self> {
+        if let Some(format) = format {
+            DateTime::new(&s, &format)
+                .map(PyDateTime)
+                .map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("invlid format"))
+        } else {
+            s.parse::<DateTime>()
+                .map(PyDateTime)
+                .map_err(|_| PyErr::new::<pyo3::exceptions::PyValueError, _>("invalid date"))
+        }
+    }
+
+    pub fn between(&self, start: Self, end: Self) -> bool {
+        self.0.between(start.0, end.0)
     }
 }
