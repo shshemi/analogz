@@ -1,7 +1,8 @@
 import functools
 from typing import Optional, Union, Callable, TypeVar, List
-from ._lib_rs import PyBuffer, PyLineIter, PyArcStr, PyRegex
+from ._lib_rs import PyBuffer, PyLineIter, PyArcStr, PyRegex, PyDateTime
 from typing import Tuple
+
 
 class ArcStr:
     __slots__ = ["__arc_str"]
@@ -24,7 +25,7 @@ class ArcStr:
         return ArcStr(astr)
 
     def split(self, pos: int) -> Tuple["ArcStr", "ArcStr"]:
-        s1, s2 =  self.__arc_str.split_at(pos)
+        s1, s2 = self.__arc_str.split_at(pos)
         return ArcStr(s1), ArcStr(s2)
 
     def contains(self, other) -> bool:
@@ -59,6 +60,7 @@ class ArcStr:
     def py_arc_str(self) -> PyArcStr:
         return self.__arc_str
 
+
 class LineIter:
     __slots__ = ["__iter"]
 
@@ -74,7 +76,10 @@ class LineIter:
             raise StopIteration()
         return ArcStr(next)
 
+
 MapOut = TypeVar("MapOut")
+
+
 class Buffer:
     __slots__ = ["__buffer"]
 
@@ -106,6 +111,7 @@ class Buffer:
         buf.__buffer = self.__buffer.select(items)
         return buf
 
+
 class Regex:
     __slots__ = ["__regex"]
 
@@ -118,6 +124,22 @@ class Regex:
             return None
         return ArcStr(astr)
 
+
+class DateTime:
+    __slots__ = ["__date_time"]
+
+    def __init__(self, s: str, fmt: Optional[str] = None):
+        self.__date_time = PyDateTime(s, fmt)
+
+    def __str__(self) -> str:
+        return self.__date_time.to_string()
+
+    def between(self, start: "DateTime", end: "DateTime") -> bool:
+        return self.__date_time.between(start.__date_time, end.__date_time)
+
+
 functools.lru_cache(maxsize=1024)
+
+
 def compile_regex(pattern: str) -> PyRegex:
     return PyRegex(pattern)

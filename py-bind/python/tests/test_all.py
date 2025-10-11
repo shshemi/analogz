@@ -1,5 +1,5 @@
 import pytest
-from analogz import Buffer, LineIter, ArcStr, Regex
+from analogz import Buffer, LineIter, ArcStr, Regex, DateTime
 
 
 def test_buffer_init():
@@ -160,3 +160,11 @@ def test_select():
     assert [str(line) for line in selected] == ["Line1", "Line333"]
     with pytest.raises(IndexError):
         buff.select([3, 4])
+
+def test_date_time():
+    DateTime("2020-10-12 10:20:30")
+    DateTime("2020-10-12 10:20:30", "%Y-%m-%d %H:%M:%S")
+    with pytest.raises(ValueError):
+        DateTime("2020-10-12 10:20:30-")
+        DateTime("2020-10-12-")
+        DateTime("2020@10@12")
