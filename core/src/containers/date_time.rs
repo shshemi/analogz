@@ -60,15 +60,29 @@ pub const DATETIME_FORMATS: &[&str] = &[
 ];
 
 #[derive(Debug, thiserror::Error)]
-#[error("Datetime not found")]
+#[error("Date time not found")]
 pub struct DateTimeNotFound;
+
+#[derive(Debug, thiserror::Error)]
+#[error("Invalid date time format")]
+pub struct InvalidDateTimeFormat;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DateTime(NaiveDateTime);
 
 impl DateTime {
+    pub fn new(s: &str, fmt: &str) -> Result<Self, InvalidDateTimeFormat> {
+        Ok(Self(
+            NaiveDateTime::parse_from_str(s, fmt).map_err(|_| InvalidDateTimeFormat)?,
+        ))
+    }
+
     pub fn into_inner(self) -> NaiveDateTime {
         self.0
+    }
+
+    pub fn between(&self, start: Self, end: Self) -> bool {
+        start.0 < self.0 && self.0 < end.0
     }
 }
 
