@@ -5,10 +5,10 @@ mod cut_index;
 mod date_time;
 mod errors;
 mod ip_addr;
+mod pattern;
 mod range_index;
 mod regex;
 mod socket_addr;
-mod traits;
 
 pub use arc_slice::ArcSlice;
 pub use arc_str::ArcStr;
