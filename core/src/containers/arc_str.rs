@@ -1,4 +1,4 @@
-use crate::containers::traits::Find;
+use crate::containers::pattern::{Pattern, Searcher};
 use std::{
     fmt::{Debug, Display},
     ops::{Deref, RangeBounds},
@@ -114,8 +114,14 @@ impl ArcStr {
         }
     }
 
-    pub fn find<F: Find>(&self, f: F) -> Option<Self> {
-        f.find(self)
+    pub fn find<P: Pattern>(&self, pat: P) -> Option<Self> {
+        pat.into_searcher(self.clone())
+            .next_match()
+            .map(|(start, end)| self.slice(start..end))
+    }
+
+    pub fn find_iter<P: Pattern>(&self, pat: P) -> impl Searcher {
+        pat.into_searcher(self.clone())
     }
 
     pub fn as_str(&self) -> &str {
