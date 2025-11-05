@@ -1,5 +1,5 @@
 import pytest
-from analogz import Buffer, LineIter, ArcStr, Regex, DateTime
+from analogz import ArcStr, Buffer, DateTime, LineIter, Regex
 
 
 def test_buffer_init():

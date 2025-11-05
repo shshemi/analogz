@@ -1,7 +1,7 @@
 import functools
-from typing import Optional, Union, Callable, TypeVar, List
-from ._lib_rs import PyBuffer, PyLineIter, PyArcStr, PyRegex, PyDateTime
-from typing import Tuple
+from typing import Callable, List, Optional, Tuple, TypeVar, Union
+
+from ._lib_rs import PyArcStr, PyBuffer, PyDateTime, PyLineIter, PyRegex
 
 
 class ArcStr:
