@@ -51,9 +51,10 @@ impl<'a> StrSearcher<'a> {
 impl<'a> Searcher for StrSearcher<'a> {
     fn next_match(&mut self) -> Option<(usize, usize)> {
         if let Some(start) = self.astr.as_str()[self.offset..].find(self.pat) {
-            let (_, n) = self.astr.split_at(start);
-            self.astr = n;
-            Some((start, start + self.pat.len()))
+            let start = self.offset + start;
+            let end = start + self.pat.len();
+            self.offset = end;
+            Some((start, end))
         } else {
             None
         }
@@ -147,12 +148,9 @@ mod tests {
 
     #[test]
     fn progression_after_nonzero_start_shifts_internal_arcstr() {
-        // First match is at a non-zero index; internal ArcStr is replaced with the suffix
         let mut searcher = StrSearcher::new(ArcStr::from("xxabc"), "abc");
         assert_eq!(searcher.next_match(), Some((2, 5)));
-        // After the first call the internal ArcStr begins at the previous match start,
-        // so the next match is found at index 0 relative to the new ArcStr.
-        assert_eq!(searcher.next_match(), Some((0, 3)));
+        assert_eq!(searcher.next_match(), None);
     }
 
     #[test]
@@ -163,6 +161,6 @@ mod tests {
         assert_eq!(searcher.next_match(), Some((2, 5)));
         // After the internal ArcStr is adjusted, the next call finds the pattern at index 0
         // relative to the updated ArcStr.
-        assert_eq!(searcher.next_match(), Some((7, 3)));
+        assert_eq!(searcher.next_match(), Some((7, 10)));
     }
 }
