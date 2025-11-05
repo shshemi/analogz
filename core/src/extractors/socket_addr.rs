@@ -8,7 +8,7 @@ use crate::{
 pub struct SocketAddrNotFonud;
 
 #[derive(Debug, Clone, Default)]
-pub struct SocketAddrExtractor {}
+pub struct SocketAddrExtractor;
 
 impl SocketAddrExtractor {
     pub fn extract(&self, text: ArcStr) -> Option<SocketAddr> {
