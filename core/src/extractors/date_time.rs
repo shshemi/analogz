@@ -1,7 +1,7 @@
 use crate::containers::{ArcStr, DateTime};
 
 #[derive(Debug, Clone, Default)]
-pub struct DateTimeExtractor;
+pub struct DateTimeExtractor {}
 
 impl DateTimeExtractor {
     pub fn extract(&self, text: ArcStr) -> Option<DateTime> {
