@@ -3,10 +3,6 @@ use crate::{
     misc::split::SplitExt,
 };
 
-#[derive(Debug, thiserror::Error)]
-#[error("Ip address not found")]
-pub struct SocketAddrNotFonud;
-
 #[derive(Debug, Clone, Default)]
 pub struct SocketAddrExtractor {}
 
