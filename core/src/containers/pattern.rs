@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use regex::Regex;
 
 use crate::containers::ArcStr;
@@ -12,6 +14,40 @@ pub trait Searcher {
     fn next_match(&mut self) -> Option<(usize, usize)>;
 }
 
+impl Pattern for HashSet<char> {
+    type Searcher = CharsSearcher;
+
+    fn into_searcher(self, astr: ArcStr) -> Self::Searcher {
+        CharsSearcher {
+            astr: astr.clone(),
+            pat: astr.chars().collect(),
+            offset: 0,
+        }
+    }
+}
+
+pub struct CharsSearcher {
+    astr: ArcStr,
+    pat: HashSet<char>,
+    offset: usize,
+}
+
+impl Searcher for CharsSearcher {
+    fn next_match(&mut self) -> Option<(usize, usize)> {
+        if let Some((start, c)) = self.astr.as_str()[self.offset..]
+            .char_indices()
+            .find(|(_, c)| self.pat.contains(c))
+        {
+            let start = self.offset + start;
+            let end = start + c.len_utf8();
+            self.offset = end;
+            Some((start, end))
+        } else {
+            None
+        }
+    }
+}
+
 impl<'a> Pattern for &'a str {
     type Searcher = StrSearcher<'a>;
 
@@ -21,14 +57,6 @@ impl<'a> Pattern for &'a str {
             pat: self,
             offset: 0,
         }
-    }
-}
-
-impl Pattern for Regex {
-    type Searcher = RegexSearcher;
-
-    fn into_searcher(self, astr: ArcStr) -> Self::Searcher {
-        Self::Searcher { astr, pat: self }
     }
 }
 
@@ -50,7 +78,9 @@ impl<'a> StrSearcher<'a> {
 
 impl<'a> Searcher for StrSearcher<'a> {
     fn next_match(&mut self) -> Option<(usize, usize)> {
-        if let Some(start) = self.astr.as_str()[self.offset..].find(self.pat) {
+        if !self.pat.is_empty()
+            && let Some(start) = self.astr.as_str()[self.offset..].find(self.pat)
+        {
             let start = self.offset + start;
             let end = start + self.pat.len();
             self.offset = end;
@@ -58,6 +88,14 @@ impl<'a> Searcher for StrSearcher<'a> {
         } else {
             None
         }
+    }
+}
+
+impl Pattern for Regex {
+    type Searcher = RegexSearcher;
+
+    fn into_searcher(self, astr: ArcStr) -> Self::Searcher {
+        Self::Searcher { astr, pat: self }
     }
 }
 
