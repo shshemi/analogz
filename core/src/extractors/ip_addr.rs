@@ -1,7 +1,4 @@
-use crate::{
-    containers::{ArcStr, IpAddr},
-    misc::split::SplitExt,
-};
+use crate::containers::{ArcStr, IpAddr};
 
 #[derive(Debug, Clone, Default)]
 pub struct IpAddrExtractor {}
