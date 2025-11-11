@@ -1,58 +1,46 @@
-use crate::containers::ArcStr;
+use crate::containers::{ArcStr, Pattern, Searcher};
 
 #[derive(Debug)]
 pub struct Split<S> {
-    text: Option<ArcStr>,
-    split_chars: S,
+    astr: ArcStr,
+    ser: S,
+    start: usize,
 }
 
-impl<SP> Iterator for Split<SP>
+impl<S> Split<S> {
+    pub fn new<P>(astr: ArcStr, pat: P) -> Self
+    where
+        P: Pattern<Searcher = S>,
+    {
+        Self {
+            astr: astr.clone(),
+            ser: pat.into_searcher(astr),
+            start: 0,
+        }
+    }
+}
+
+impl<S> Iterator for Split<S>
 where
-    SP: SplitChars,
+    S: Searcher,
 {
     type Item = ArcStr;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(text) = self.text.take() {
-            if let Some((idx, ch)) = text
-                .char_indices()
-                .find(|(_, c)| self.split_chars.contains(c))
-            {
-                let (next, _, text) = text.split_at_two(idx, idx + ch.len_utf8());
-                self.text = Some(text);
+        if let Some((start, end)) = self.ser.next_match() {
+            let next = self.astr.slice(self.start..start);
+            self.start = end;
+            Some(next)
+        } else {
+            let len = self.astr.len();
+            if self.start < len {
+                let next = self.astr.slice(self.start..len);
+                self.start = len;
                 Some(next)
             } else {
-                Some(text)
+                None
             }
-        } else {
-            None
         }
-    }
-}
-
-pub trait SplitExt<S> {
-    fn split(&self, pattern: S) -> Split<S>;
-}
-
-impl<S> SplitExt<S> for ArcStr
-where
-    S: SplitChars,
-{
-    fn split(&self, pattern: S) -> Split<S> {
-        Split {
-            text: Some(self.clone()),
-            split_chars: pattern,
-        }
-    }
-}
-
-pub trait SplitChars {
-    fn contains(&self, c: &char) -> bool;
-}
-
-impl SplitChars for &str {
-    fn contains(&self, c: &char) -> bool {
-        self.chars().any(|a| &a == c)
     }
 }
 
