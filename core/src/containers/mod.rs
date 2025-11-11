@@ -17,5 +17,7 @@ pub use cut_index::CutIndex;
 pub use date_time::DateTime;
 pub use errors::InvalidIndexError;
 pub use ip_addr::IpAddr;
+pub use pattern::Pattern;
+pub use pattern::Searcher;
 pub use regex::Regex;
 pub use socket_addr::SocketAddr;
