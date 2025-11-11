@@ -1,23 +1,34 @@
 use crate::{
-    containers::ArcStr,
-    misc::split::{Split, SplitChars, SplitExt},
+    containers::{ArcStr, Searcher},
+    misc::split::Split,
 };
 
 pub struct NGrams<S> {
-    split_iter: Split<S>,
+    split: Split<S>,
     tokens: Vec<ArcStr>,
     i: usize,
     j: usize,
 }
 
+impl<S> NGrams<S> {
+    pub fn new(split: Split<S>) -> Self {
+        Self {
+            split,
+            tokens: Default::default(),
+            i: 1,
+            j: 1,
+        }
+    }
+}
+
 impl<S> Iterator for NGrams<S>
 where
-    S: SplitChars,
+    S: Searcher,
 {
     type Item = ArcStr;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(next) = self.split_iter.next() {
+        if let Some(next) = self.split.next() {
             self.tokens.push(next);
             let start = self.tokens.first()?;
             let end = self.tokens.last()?;
@@ -39,27 +50,27 @@ where
     }
 }
 
-pub trait NGramsExt<S> {
-    fn ngrams(&self, split_chars: S) -> NGrams<S>;
-}
+// pub trait NGramsExt<S> {
+//     fn ngrams(&self, split_chars: impl Pattern<Searcher = S>) -> NGrams<S>;
+// }
 
-impl<S> NGramsExt<S> for ArcStr
-where
-    S: SplitChars,
-{
-    fn ngrams(&self, split_chars: S) -> NGrams<S> {
-        NGrams {
-            split_iter: self.split(split_chars),
-            tokens: Vec::new(),
-            i: 1,
-            j: 1,
-        }
-    }
-}
+// impl<S> NGramsExt<S> for ArcStr
+// where
+//     S: Searcher,
+// {
+//     fn ngrams(&self, pattern: impl Pattern<Searcher = S>) -> NGrams<S> {
+//         let s = self.split(pattern);
+//         NGrams {
+//             split: s,
+//             tokens: Vec::new(),
+//             i: 1,
+//             j: 1,
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::containers::ArcStr;
 
     // Helper function to collect all ngrams into a vector of strings for easier testing
