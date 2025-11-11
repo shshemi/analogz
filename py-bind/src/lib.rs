@@ -135,8 +135,8 @@ impl PyArcStr {
         Ok(Self(self.0.slice(start..end)))
     }
 
-    pub fn find(&self, pattern: String) -> Option<PyArcStr> {
-        self.0.find(pattern.as_str()).map(PyArcStr)
+    pub fn find(&self, pattern: String) -> Option<usize> {
+        self.0.find(pattern.as_str()).map(|(s, _)| s)
     }
 
     pub fn split_at(&self, at: usize) -> (PyArcStr, PyArcStr) {
