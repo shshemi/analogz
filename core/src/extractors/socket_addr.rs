@@ -1,14 +1,13 @@
-use crate::{
-    containers::{ArcStr, SocketAddr},
-    misc::split::SplitExt,
-};
+use std::collections::HashSet;
+
+use crate::containers::{ArcStr, SocketAddr};
 
 #[derive(Debug, Clone, Default)]
 pub struct SocketAddrExtractor {}
 
 impl SocketAddrExtractor {
     pub fn extract(&self, text: ArcStr) -> Option<SocketAddr> {
-        text.split(" \"$'(),;<>@[]`{|}=")
+        text.split(" \"$'(),;<>@[]`{|}=".chars().collect::<HashSet<char>>())
             .find_map(|slice| slice.parse::<SocketAddr>().ok())
     }
 }
