@@ -124,9 +124,9 @@ mod tests {
     fn split_does_not_consume_past_end_after_none() {
         // After iterator returns None, it must keep returning None on subsequent calls.
         let mut it = arc("a,b").split(",");
-        assert_eq!(it.next().as_deref(), Some("a"));
-        assert_eq!(it.next().as_deref(), Some("b"));
-        assert_eq!(it.next(), None);
+        assert_eq!(it.next().unwrap(), "a");
+        assert_eq!(it.next().unwrap(), "b");
+        assert!(it.next().is_none());
         // Call next() multiple times; still None
         assert_eq!(it.next(), None);
         assert_eq!(it.next(), None);
@@ -136,8 +136,8 @@ mod tests {
     fn split_yields_entire_rest_when_no_more_delims() {
         // Ensures branch that yields remaining text when find() returns None
         let mut it = arc("a,bcd").split(",");
-        assert_eq!(it.next().as_deref(), Some("a"));
-        assert_eq!(it.next().as_deref(), Some("bcd"));
+        assert_eq!(it.next().unwrap(), "a");
+        assert_eq!(it.next().unwrap(), "bcd");
         assert_eq!(it.next(), None);
     }
 
