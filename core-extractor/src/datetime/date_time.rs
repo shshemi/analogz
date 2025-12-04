@@ -84,6 +84,14 @@ impl DateTime {
     pub fn between(&self, start: Self, end: Self) -> bool {
         start.0 < self.0 && self.0 < end.0
     }
+
+    pub fn parse_and_remainder(s: &str) -> Result<(Self, &str), DateTimeNotFound> {
+        DATETIME_FORMATS
+            .iter()
+            .find_map(|fmt| chrono::NaiveDateTime::parse_and_remainder(s, fmt).ok())
+            .map(|(dt, slice)| (DateTime(dt), slice))
+            .ok_or(DateTimeNotFound)
+    }
 }
 
 impl From<NaiveDateTime> for DateTime {
@@ -98,10 +106,10 @@ impl FromStr for DateTime {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let naive_dt = DATETIME_FORMATS
             .iter()
-            .map(|fmt| chrono::NaiveDateTime::parse_and_remainder(s, fmt))
+            .map(|fmt| chrono::NaiveDateTime::parse_from_str(s, fmt))
             .find_map(|result| result.ok())
             .ok_or(DateTimeNotFound)?;
-        Ok(DateTime(naive_dt.0))
+        Ok(DateTime(naive_dt))
     }
 }
 

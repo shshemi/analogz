@@ -1,9 +1,4 @@
-use std::{
-    ops::{Deref, RangeBounds},
-    sync::Arc,
-};
-
-use crate::containers::InvalidIndexError;
+use std::{ops::RangeBounds, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct ArcSlice<T> {
@@ -100,13 +95,9 @@ impl<T> AsRef<[T]> for ArcSlice<T> {
     }
 }
 
-impl<T> Deref for ArcSlice<T> {
-    type Target = [T];
-
-    fn deref(&self) -> &Self::Target {
-        self.as_ref()
-    }
-}
+#[derive(Debug, thiserror::Error)]
+#[error("Datetime not found")]
+pub struct InvalidIndexError(pub usize);
 
 #[cfg(test)]
 mod tests {
@@ -213,13 +204,6 @@ mod tests {
         let slice = ArcSlice::new(data);
         let slice_ref: &[i32] = slice.as_ref();
         assert_eq!(slice_ref, &[1, 2, 3, 4, 5]);
-    }
-
-    #[test]
-    fn test_deref() {
-        let data = vec![1, 2, 3, 4, 5];
-        let slice = ArcSlice::new(data);
-        assert_eq!(&slice[0..3], &[1, 2, 3]);
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 use itertools::Itertools;
 
-use crate::containers::{ArcSlice, InvalidIndexError};
+use crate::containers::{ArcSlice, arc_slice::InvalidIndexError};
 
 type RangeUsize = std::ops::Range<usize>;
 

@@ -1,23 +1,9 @@
 mod arc_slice;
 mod arc_str;
-// mod buffer;
-mod cut_index;
-mod date_time;
-mod errors;
-mod ip_addr;
 mod pattern;
-mod range_index;
-mod regex;
-mod socket_addr;
 
 pub use arc_slice::ArcSlice;
 pub use arc_str::ArcStr;
-// pub use buffer::{Buffer, Lines};
-pub use cut_index::CutIndex;
-pub use date_time::DateTime;
-pub use errors::InvalidIndexError;
-pub use ip_addr::IpAddr;
 pub use pattern::Pattern;
 pub use pattern::Searcher;
 pub use regex::Regex;
-pub use socket_addr::SocketAddr;

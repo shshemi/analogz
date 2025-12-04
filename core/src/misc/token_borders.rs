@@ -1,12 +1,12 @@
 pub struct TokenBorders<'a> {
-    str: &'a str,
+    haystack: &'a str,
     state: State,
 }
 
 impl<'a> TokenBorders<'a> {
     pub fn new(str: &'a str) -> Self {
         Self {
-            str,
+            haystack: str,
             state: State::Start,
         }
     }
@@ -22,13 +22,13 @@ impl<'a> Iterator for TokenBorders<'a> {
                 Some(0)
             }
             State::Find(offset) => {
-                if let Some(idx) = self.str[offset..].find(pat) {
+                if let Some(idx) = self.haystack[offset..].find(pat) {
                     let idx = offset + idx;
                     self.state = State::Found(idx + 1);
                     Some(idx)
                 } else {
                     self.state = State::End;
-                    Some(self.str.len())
+                    Some(self.haystack.len())
                 }
             }
             State::Found(offset) => {
