@@ -3,7 +3,7 @@ use crate::{
     misc::{
         chars::{CharIndices, Chars},
         split::Split,
-        window::Window,
+        window::Windows,
     },
 };
 use std::{
@@ -109,8 +109,8 @@ impl ArcStr {
         self.clone().into()
     }
 
-    pub fn window(&self, size: usize) -> Window {
-        Window::new(self.clone(), size)
+    pub fn windows(&self, size: usize) -> Windows {
+        Windows::new(self.clone(), size)
     }
 
     /// Returns the relative position (as an `isize`) of another `ArcStr`'s start
