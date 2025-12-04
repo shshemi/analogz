@@ -2,13 +2,13 @@ use std::iter::Skip;
 
 use crate::{containers::ArcStr, misc::chars::CharIndices};
 
-pub struct SlidingWindow {
+pub struct Window {
     astr: ArcStr,
     start: CharIndices,
     end: Skip<CharIndices>,
 }
 
-impl SlidingWindow {
+impl Window {
     pub fn new(astr: ArcStr, size: usize) -> Self {
         Self {
             start: astr.chars_indices(),
@@ -18,7 +18,7 @@ impl SlidingWindow {
     }
 }
 
-impl Iterator for SlidingWindow {
+impl Iterator for Window {
     type Item = ArcStr;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -36,7 +36,7 @@ mod sliding_window_tests {
     // Helper to collect windows into plain Strings (content only).
     fn collect_windows(s: &str, size: usize) -> Vec<String> {
         ArcStr::from(s)
-            .sliding_window(size)
+            .window(size)
             .map(|w| w.as_str().to_string())
             .collect()
     }
@@ -44,12 +44,12 @@ mod sliding_window_tests {
     #[test]
     #[should_panic]
     fn size_zero_panics() {
-        let _ = ArcStr::from("abc").sliding_window(0);
+        let _ = ArcStr::from("abc").window(0);
     }
 
     #[test]
     fn empty_input_yields_no_windows() {
-        let out: Vec<_> = ArcStr::from("").sliding_window(1).collect();
+        let out: Vec<_> = ArcStr::from("").window(1).collect();
         assert!(out.is_empty());
     }
 
@@ -83,7 +83,7 @@ mod sliding_window_tests {
     fn windows_have_exactly_size_characters() {
         let size = 3;
         let all_len_ok = ArcStr::from("abcde")
-            .sliding_window(size)
+            .window(size)
             .all(|w| w.chars().count() == size);
         assert!(all_len_ok);
     }
@@ -105,7 +105,7 @@ mod sliding_window_tests {
 
     #[test]
     fn fused_after_exhaustion() {
-        let mut it = ArcStr::from("abc").sliding_window(2);
+        let mut it = ArcStr::from("abc").window(2);
         assert_eq!(it.next().unwrap().as_str(), "ab");
         assert_eq!(it.next().unwrap().as_str(), "bc");
         assert!(it.next().is_none());
@@ -116,17 +116,14 @@ mod sliding_window_tests {
     fn slice_input_produces_windows_relative_to_slice() {
         let base = ArcStr::from("hello world");
         let slice = base.slice(6..); // "world"
-        let out: Vec<_> = slice
-            .sliding_window(3)
-            .map(|w| w.as_str().to_string())
-            .collect();
+        let out: Vec<_> = slice.window(3).map(|w| w.as_str().to_string()).collect();
         assert_eq!(out, vec!["wor", "orl", "rld"]);
     }
 
     #[test]
     fn every_window_is_non_empty() {
         let all_non_empty = ArcStr::from("abc")
-            .sliding_window(2)
+            .window(2)
             .all(|w| !w.as_str().is_empty());
         assert!(all_non_empty);
     }
@@ -136,9 +133,7 @@ mod sliding_window_tests {
         // Use `contains` to verify windows share the same backing Arc and lie within bounds.
         let base = ArcStr::from("abcdef");
         let base_clone = base.clone();
-        let all_contained = base
-            .sliding_window(3)
-            .all(|w| base_clone.contains(w.as_str()));
+        let all_contained = base.window(3).all(|w| base_clone.contains(w.as_str()));
         assert!(all_contained);
     }
 }

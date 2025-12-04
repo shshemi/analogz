@@ -2,9 +2,8 @@ use crate::{
     containers::pattern::{Pattern, Searcher},
     misc::{
         chars::{CharIndices, Chars},
-        ngrams::NGrams,
-        sliding_window::SlidingWindow,
         split::Split,
+        window::Window,
     },
 };
 use std::{
@@ -90,10 +89,6 @@ impl ArcStr {
         Split::new(self.clone(), pat)
     }
 
-    pub fn ngrams<P: Pattern>(&self, pat: P) -> NGrams<P::Searcher> {
-        NGrams::new(self.split(pat))
-    }
-
     pub fn contains<P: Pattern>(&self, pat: P) -> bool {
         self.find(pat).is_some()
     }
@@ -114,8 +109,8 @@ impl ArcStr {
         self.clone().into()
     }
 
-    pub fn sliding_window(&self, size: usize) -> SlidingWindow {
-        SlidingWindow::new(self.clone(), size)
+    pub fn window(&self, size: usize) -> Window {
+        Window::new(self.clone(), size)
     }
 
     /// Returns the relative position (as an `isize`) of another `ArcStr`'s start
