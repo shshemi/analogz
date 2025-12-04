@@ -1,76 +1,41 @@
 use crate::{
     containers::pattern::{Pattern, Searcher},
-    misc::{ngrams::NGrams, split::Split},
+    misc::{
+        chars::{CharIndices, Chars},
+        ngrams::NGrams,
+        sliding_window::SlidingWindow,
+        split::Split,
+    },
 };
 use std::{
+    borrow::Borrow,
     fmt::{Debug, Display},
+    hash::Hash,
     ops::{Deref, RangeBounds},
     sync::Arc,
 };
 
-#[derive(Clone, Hash)]
+#[derive(Clone)]
 pub struct ArcStr {
     astr: Arc<str>,
     start: usize,
     end: usize,
 }
 
-impl Debug for ArcStr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ArcStr({:?})", self.as_str())
-    }
-}
-
-impl Display for ArcStr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(self.as_ref(), f)
-    }
-}
-
-impl<T> PartialEq<T> for ArcStr
-where
-    T: Deref<Target = str>,
-{
-    fn eq(&self, other: &T) -> bool {
-        self.deref().eq(other.deref())
-    }
-}
-
-impl Eq for ArcStr {}
-
-impl<T> PartialOrd<T> for ArcStr
-where
-    T: Deref<Target = str>,
-{
-    fn partial_cmp(&self, other: &T) -> Option<std::cmp::Ordering> {
-        self.deref().partial_cmp(other.deref())
-    }
-}
-
-impl Ord for ArcStr {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.deref().cmp(other)
-    }
-}
-
 impl ArcStr {
-    pub fn new(value: impl Into<Arc<str>>) -> Self {
-        let astr = value.into();
-        let end = astr.len();
-
-        Self {
-            astr,
-            start: 0,
-            end,
-        }
-    }
-
+    #[inline]
     pub fn start(&self) -> usize {
         self.start
     }
 
+    #[inline]
     pub fn end(&self) -> usize {
         self.end
+    }
+
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        &self.astr[self.start..self.end]
     }
 
     pub fn slice(&self, rng: impl RangeBounds<usize>) -> Self {
@@ -106,22 +71,18 @@ impl ArcStr {
     }
 
     pub fn merge_span(&self, other: &Self) -> Option<Self> {
-        if Arc::ptr_eq(&self.astr, &other.astr) {
-            Some(Self {
-                astr: self.astr.clone(),
-                start: self.start.min(other.start),
-                end: self.end.max(other.end),
-            })
-        } else {
-            None
-        }
+        Arc::ptr_eq(&self.astr, &other.astr).then_some(Self {
+            astr: self.astr.clone(),
+            start: self.start.min(other.start),
+            end: self.end.max(other.end),
+        })
     }
 
     pub fn find<P: Pattern>(&self, pat: P) -> Option<(usize, usize)> {
         pat.into_searcher(self.clone()).next_match()
     }
 
-    pub fn find_iter<P: Pattern>(&self, pat: P) -> impl Searcher {
+    pub fn find_iter<P: Pattern>(&self, pat: P) -> P::Searcher {
         pat.into_searcher(self.clone())
     }
 
@@ -133,13 +94,28 @@ impl ArcStr {
         NGrams::new(self.split(pat))
     }
 
-    pub fn as_str(&self) -> &str {
-        &self.astr[self.start..self.end]
+    pub fn contains<P: Pattern>(&self, pat: P) -> bool {
+        self.find(pat).is_some()
     }
 
-    pub fn contains(&self, other: ArcStr) -> bool {
-        (Arc::ptr_eq(&self.astr, &other.astr) && self.start <= other.start && other.end <= self.end)
-            || self.as_str().contains(other.as_str())
+    pub fn len(&self) -> usize {
+        self.end.saturating_sub(self.start)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.start == self.end
+    }
+
+    pub fn chars(&self) -> Chars {
+        self.clone().into()
+    }
+
+    pub fn chars_indices(&self) -> CharIndices {
+        self.clone().into()
+    }
+
+    pub fn sliding_window(&self, size: usize) -> SlidingWindow {
+        SlidingWindow::new(self.clone(), size)
     }
 
     /// Returns the relative position (as an `isize`) of another `ArcStr`'s start
@@ -167,12 +143,69 @@ impl ArcStr {
     }
 }
 
+impl Debug for ArcStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ArcStr({:?})", self.as_str())
+    }
+}
+
+impl Display for ArcStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self.as_ref(), f)
+    }
+}
+
+impl PartialEq for ArcStr {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl<T> PartialEq<T> for ArcStr
+where
+    T: Deref<Target = str>,
+{
+    fn eq(&self, other: &T) -> bool {
+        self.as_str() == other.deref()
+    }
+}
+
+impl Eq for ArcStr {}
+
+impl PartialOrd for ArcStr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> PartialOrd<T> for ArcStr
+where
+    T: Deref<Target = str>,
+{
+    fn partial_cmp(&self, other: &T) -> Option<std::cmp::Ordering> {
+        self.as_str().partial_cmp(other.deref())
+    }
+}
+
+impl Ord for ArcStr {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_ref().cmp(other.as_str())
+    }
+}
+
 impl<C> From<C> for ArcStr
 where
     C: Into<Arc<str>>,
 {
     fn from(value: C) -> Self {
-        ArcStr::new(value)
+        let astr = value.into();
+        let end = astr.len();
+
+        Self {
+            astr,
+            start: 0,
+            end,
+        }
     }
 }
 
@@ -182,11 +215,15 @@ impl AsRef<str> for ArcStr {
     }
 }
 
-impl Deref for ArcStr {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
+impl Borrow<str> for ArcStr {
+    fn borrow(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl Hash for ArcStr {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
     }
 }
 
@@ -197,7 +234,7 @@ mod tests {
     #[test]
     fn test_new_creates_from_string() {
         let s = "hello world";
-        let arc_str = ArcStr::new(s);
+        let arc_str = ArcStr::from(s);
         assert_eq!(arc_str.as_str(), s);
         assert_eq!(arc_str.start(), 0);
         assert_eq!(arc_str.end(), s.len());
@@ -205,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_slice_with_included_range() {
-        let arc_str = ArcStr::new("hello world");
+        let arc_str = ArcStr::from("hello world");
         let sliced = arc_str.slice(1..5);
         assert_eq!(sliced.as_str(), "ello");
         assert_eq!(sliced.start(), 1);
@@ -214,42 +251,42 @@ mod tests {
 
     #[test]
     fn test_slice_with_inclusive_range() {
-        let arc_str = ArcStr::new("hello world");
+        let arc_str = ArcStr::from("hello world");
         let sliced = arc_str.slice(1..=4);
         assert_eq!(sliced.as_str(), "ello");
     }
 
     #[test]
     fn test_slice_with_start_bound_only() {
-        let arc_str = ArcStr::new("hello world");
+        let arc_str = ArcStr::from("hello world");
         let sliced = arc_str.slice(6..);
         assert_eq!(sliced.as_str(), "world");
     }
 
     #[test]
     fn test_slice_with_end_bound_only() {
-        let arc_str = ArcStr::new("hello world");
+        let arc_str = ArcStr::from("hello world");
         let sliced = arc_str.slice(..5);
         assert_eq!(sliced.as_str(), "hello");
     }
 
     #[test]
     fn test_slice_with_unbounded_range() {
-        let arc_str = ArcStr::new("hello world");
+        let arc_str = ArcStr::from("hello world");
         let sliced = arc_str.slice(..);
         assert_eq!(sliced.as_str(), "hello world");
     }
 
     #[test]
     fn test_slice_with_range_exceeding_bounds() {
-        let arc_str = ArcStr::new("hello");
+        let arc_str = ArcStr::from("hello");
         let sliced = arc_str.slice(2..10);
         assert_eq!(sliced.as_str(), "llo");
     }
 
     #[test]
     fn test_slice_of_slice() {
-        let arc_str = ArcStr::new("hello world");
+        let arc_str = ArcStr::from("hello world");
         let sliced1 = arc_str.slice(6..);
         let sliced2 = sliced1.slice(1..4);
         assert_eq!(sliced2.as_str(), "orl");
@@ -257,7 +294,7 @@ mod tests {
 
     #[test]
     fn test_split_at() {
-        let arc_str = ArcStr::new("hello world");
+        let arc_str = ArcStr::from("hello world");
         let (left, right) = arc_str.split_at(5);
         assert_eq!(left.as_str(), "hello");
         assert_eq!(right.as_str(), " world");
@@ -265,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_split_at_beginning() {
-        let arc_str = ArcStr::new("hello");
+        let arc_str = ArcStr::from("hello");
         let (left, right) = arc_str.split_at(0);
         assert_eq!(left.as_str(), "");
         assert_eq!(right.as_str(), "hello");
@@ -273,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_split_at_end() {
-        let arc_str = ArcStr::new("hello");
+        let arc_str = ArcStr::from("hello");
         let (left, right) = arc_str.split_at(5);
         assert_eq!(left.as_str(), "hello");
         assert_eq!(right.as_str(), "");
@@ -282,21 +319,21 @@ mod tests {
     #[test]
     fn test_as_str() {
         let s = "hello world";
-        let arc_str = ArcStr::new(s);
+        let arc_str = ArcStr::from(s);
         assert_eq!(arc_str.as_str(), s);
     }
 
     #[test]
     fn test_as_ref() {
         let s = "hello world";
-        let arc_str = ArcStr::new(s);
+        let arc_str = ArcStr::from(s);
         let s_ref: &str = arc_str.as_ref();
         assert_eq!(s_ref, s);
     }
 
     #[test]
     fn test_deref() {
-        let arc_str = ArcStr::new("hello");
+        let arc_str = ArcStr::from("hello");
         assert_eq!(arc_str.len(), 5);
         assert_eq!(
             arc_str.chars().collect::<Vec<_>>(),
@@ -326,37 +363,37 @@ mod tests {
 
     #[test]
     fn test_clone() {
-        let arc_str = ArcStr::new("hello");
+        let arc_str = ArcStr::from("hello");
         let cloned = arc_str.clone();
         assert_eq!(arc_str, cloned);
     }
 
     #[test]
     fn test_partial_eq_with_str() {
-        let arc_str = ArcStr::new("hello");
+        let arc_str = ArcStr::from("hello");
         assert_eq!(arc_str.as_str(), "hello");
         assert_ne!(arc_str.as_str(), "world");
     }
 
     #[test]
     fn test_eq_between_arc_strs() {
-        let arc_str1 = ArcStr::new("hello");
-        let arc_str2 = ArcStr::new("hello");
-        let arc_str3 = ArcStr::new("world");
+        let arc_str1 = ArcStr::from("hello");
+        let arc_str2 = ArcStr::from("hello");
+        let arc_str3 = ArcStr::from("world");
         assert_eq!(arc_str1, arc_str2);
         assert_ne!(arc_str1, arc_str3);
     }
 
     #[test]
     fn test_ord_between_arc_strs() {
-        let arc_str1 = ArcStr::new("apple");
-        let arc_str2 = ArcStr::new("banana");
+        let arc_str1 = ArcStr::from("apple");
+        let arc_str2 = ArcStr::from("banana");
         assert!(arc_str1 < arc_str2);
     }
 
     #[test]
     fn test_debug_formatting() {
-        let arc_str = ArcStr::new("hello");
+        let arc_str = ArcStr::from("hello");
         let debug_str = format!("{arc_str:?}");
         assert!(debug_str.contains("hello"));
     }
@@ -365,7 +402,7 @@ mod tests {
     fn test_hash() {
         use std::collections::HashMap;
         let mut map = HashMap::new();
-        let arc_str = ArcStr::new("hello");
+        let arc_str = ArcStr::from("hello");
         map.insert(arc_str.clone(), 42);
         assert_eq!(map.get(&arc_str), Some(&42));
     }
